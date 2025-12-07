@@ -62,6 +62,13 @@ class PDFAnnotatorApp(tk.Tk):
         self.title("PDF Annotator and Merger")
         self.geometry("400x250")
         
+        # High DPI Awareness to fix blurriness
+        try:
+            from ctypes import windll
+            windll.shcore.SetProcessDpiAwareness(1)
+        except Exception as e:
+            print(f"Failed to set DPI awareness: {e}")
+        
         self.pdf_directory = os.getcwd()
         self.save_intermediate = tk.BooleanVar(value=False)
         self.open_folder = tk.BooleanVar(value=True)
