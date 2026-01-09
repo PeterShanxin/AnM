@@ -2,12 +2,14 @@ import os
 import fitz
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import customtkinter as ctk
 import subprocess
 import re
+import sys
 
 # Function to annotate and optionally save PDF files
 def annotate_and_merge(pdf_directory, save_intermediate, open_folder):
-    
+
     # Sort the PDF files in alphabetical order
     def sort_key(s):
         chunks = re.split(r'(\d+)', s)
@@ -42,7 +44,7 @@ def annotate_and_merge(pdf_directory, save_intermediate, open_folder):
 
             # Draw semi-transparent rectangle manually
             page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1), stroke_opacity=0.5, fill_opacity=0.5)
-            
+
             # Insert text over the rectangle
             page.insert_text(text_location, text, fontsize=font_size, rotate=0, color=(0, 0, 0))
 
@@ -73,52 +75,55 @@ def annotate_and_merge(pdf_directory, save_intermediate, open_folder):
             os.remove(file_path)
 
     if open_folder:
-        subprocess.Popen(f'explorer \"{os.path.realpath(pdf_directory)}\"')
+        if sys.platform == "win32":
+            subprocess.Popen(f'explorer \"{os.path.realpath(pdf_directory)}\"')
+        else:
+            print(f"Output saved to {pdf_directory}. (Auto-open only supported on Windows)")
 
-# GUI Application using tkinter
-class PDFAnnotatorApp(tk.Tk):
+# GUI Application using customtkinter
+ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
+ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
+
+class PDFAnnotatorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("PDF Annotator and Merger")
-        self.geometry("500x250")
-        
-        # High DPI Awareness to fix blurriness
-        try:
-            from ctypes import windll
-            windll.shcore.SetProcessDpiAwareness(1)
-        except Exception as e:
-            print(f"Failed to set DPI awareness: {e}")
-        
+        self.geometry("600x400")
+
         self.pdf_directory = os.getcwd()
-        self.save_intermediate = tk.BooleanVar(value=False)
-        self.open_folder = tk.BooleanVar(value=True)
-        
+        self.save_intermediate = ctk.BooleanVar(value=False)
+        self.open_folder = ctk.BooleanVar(value=True)
+
+        # Main Frame to center content
+        self.main_frame = ctk.CTkFrame(self)
+        self.main_frame.pack(pady=20, padx=20, fill="both", expand=True)
+
         # Directory Label
-        self.directory_label = tk.Label(self, text=f"Current Directory: {self.pdf_directory}", wraplength=480, justify="left", font=("Arial", 16))
-        self.directory_label.pack(pady=10)
-        
+        self.directory_label = ctk.CTkLabel(self.main_frame, text=f"Current Directory:\n{self.pdf_directory}", wraplength=550, justify="center", font=("Arial", 16))
+        self.directory_label.pack(pady=20)
+
         # Select Directory Button
-        self.select_dir_button = tk.Button(self, text="Select Folder", command=self.select_directory, font=("Arial", 16))
-        self.select_dir_button.pack(pady=5)
-        
-        # Begin Merge Button
-        self.begin_merge_button = tk.Button(self, text="Begin Merge", command=self.begin_merge, font=("Arial", 16))
-        self.begin_merge_button.pack(pady=5)
-        
+        self.select_dir_button = ctk.CTkButton(self.main_frame, text="Select Folder", command=self.select_directory, font=("Arial", 16))
+        self.select_dir_button.pack(pady=10)
+
         # Save Intermediate Files Checkbox
-        self.save_intermediate_checkbox = tk.Checkbutton(self, text="Save Intermediate Annotated Files", variable=self.save_intermediate, font=("Arial", 16))
-        self.save_intermediate_checkbox.pack(pady=5)
-        
+        self.save_intermediate_checkbox = ctk.CTkCheckBox(self.main_frame, text="Save Intermediate Annotated Files", variable=self.save_intermediate, font=("Arial", 14))
+        self.save_intermediate_checkbox.pack(pady=10)
+
         # Open Folder After Merge Checkbox
-        self.open_folder_checkbox = tk.Checkbutton(self, text="Open Folder After Merge", variable=self.open_folder, font=("Arial", 16))
-        self.open_folder_checkbox.pack(pady=5)
-    
+        self.open_folder_checkbox = ctk.CTkCheckBox(self.main_frame, text="Open Folder After Merge", variable=self.open_folder, font=("Arial", 14))
+        self.open_folder_checkbox.pack(pady=10)
+
+        # Begin Merge Button
+        self.begin_merge_button = ctk.CTkButton(self.main_frame, text="Begin Merge", command=self.begin_merge, font=("Arial", 16, "bold"), fg_color="#2CC985", hover_color="#229966")
+        self.begin_merge_button.pack(pady=20)
+
     def select_directory(self):
         selected_directory = filedialog.askdirectory(initialdir=self.pdf_directory)
         if selected_directory:
             self.pdf_directory = selected_directory
-            self.directory_label.config(text=f"Current Directory: {self.pdf_directory}")
-    
+            self.directory_label.configure(text=f"Current Directory:\n{self.pdf_directory}")
+
     def begin_merge(self):
         try:
             annotate_and_merge(self.pdf_directory, self.save_intermediate.get(), self.open_folder.get())
