@@ -1,39 +1,82 @@
 # Annotate and Merge PDFs
 
-A lightweight Python app to annotate and merge PDF files via a Tkinter GUI.
+AnM is a Windows-first desktop app for annotating and merging PDFs with a Tkinter GUI. It is now packaged as a small Python project with a testable PDF pipeline, drag-and-drop workflow, safer output handling, and a reproducible local/CI build.
 
-## Features
+## What it does
 
-- Annotates each page with its filename.
-- Natural sorting of PDF files to ensure correct order.
-- Semi-transparent rectangle behind the filename for readability.
-- Option to save intermediate annotated files or discard them.
-- Merges annotated files into a single PDF.
-- High DPI awareness for clear display on high-resolution screens.
-- Cleans up intermediate files when not required.
-- Simple interface with buttons to select a directory, begin merge, and toggle options.
+- Drag and drop PDF files or folders into the app.
+- Keep a visible merge queue with include or exclude controls.
+- Reorder files before merging.
+- Add a filename-based annotation to every page.
+- Adjust annotation template, position, font size, margin, and box opacity.
+- Preview the current overlay on the first selected PDF.
+- Write merged output to `output/annotated-merged.pdf` by default.
+- Optionally keep intermediate annotated PDFs under `output/annotated/`.
+- Open the output folder automatically after a successful run.
+
+## Safety defaults
+
+- App-generated PDFs are excluded from future discovery so reruns do not re-merge old output.
+- Temporary working files are created under `output/.tmp/` and removed automatically when intermediate files are not being kept.
+- If the merged output already exists, the app asks before overwriting it.
 
 ## Requirements
 
-- Python 3.x
-- PyMuPDF (fitz)
-- Tkinter (usually included with Python on Windows)
-- Windows (supports `explorer` command to open output folder)
+- Python 3.11+
+- Windows is the primary supported desktop target
+- Tkinter (typically included with Python)
 
-## Usage
+Runtime dependencies:
 
-1. Clone this repository or download the script.
-2. Install dependencies:
-    pip install PyMuPDF
-3. Run the script:
-    python annotate_and_merge.py
-4. Select the directory containing your PDF files.
-5. Choose whether to save intermediate annotated files and whether to open the folder after merging.
-6. Click **Begin Merge** to annotate and merge PDFs. The output file will be saved as `annotatedMerged.pdf` in the selected directory.
+- `PyMuPDF`
+- `tkinterdnd2`
 
-## Roadmap
+## Install for development
 
-- [ ] Add drag-and-drop file selection.
-- [ ] Support for non-Windows platforms.
-- [ ] Customize annotation position and style.
-- [ ] More configuration via settings panel.
+```powershell
+python -m pip install -e ".[dev]"
+```
+
+## Run
+
+Either entry point works:
+
+```powershell
+python annotate_and_merge.py
+```
+
+or
+
+```powershell
+anm
+```
+
+## Local checks
+
+```powershell
+python -m ruff check .
+python -m pytest
+```
+
+## Build a Windows executable
+
+```powershell
+pwsh ./scripts/build_windows.ps1
+```
+
+This creates a PyInstaller build under `dist/AnM/`.
+
+## Project layout
+
+- `src/anm/pipeline.py`: PDF discovery, annotation, merge, preview, cleanup.
+- `src/anm/gui.py`: Tkinter desktop workbench, drag and drop, progress UI.
+- `src/anm/app_state.py`: queue ordering and generated-file filtering helpers.
+- `tests/`: unit, integration, and GUI smoke coverage.
+
+## Screenshots
+
+- Add fresh screenshots or a short GIF here once the upgraded UI is visually finalized.
+
+## Maintenance note
+
+If workflow, build, release, or developer setup behavior changes, update `AGENTS.md`, this README, and the corresponding config or CI files together.
