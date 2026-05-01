@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 from pathlib import Path
 
 import fitz
@@ -53,6 +54,21 @@ def test_subcommand_help_is_captured() -> None:
     assert stderr == ""
     assert "Examples:" in stdout
     assert "--dry-run" in stdout
+
+
+def test_top_level_help_does_not_import_pipeline() -> None:
+    original_pipeline = sys.modules.pop("anm.pipeline", None)
+
+    try:
+        code, stdout, stderr = run_cli(["--help"])
+
+        assert code == 0
+        assert stderr == ""
+        assert "anm merge" in stdout
+        assert "anm.pipeline" not in sys.modules
+    finally:
+        if original_pipeline is not None:
+            sys.modules["anm.pipeline"] = original_pipeline
 
 
 def test_merge_writes_output_in_explicit_order(tmp_path: Path) -> None:

@@ -11,6 +11,15 @@ from typing import Any, TextIO
 from .app_state import collect_pdf_files
 from .models import AnnotationOptions, RunOptions
 
+POSITION_CHOICES = (
+    "bottom-center",
+    "bottom-left",
+    "bottom-right",
+    "top-center",
+    "top-left",
+    "top-right",
+)
+
 
 class CliError(RuntimeError):
     """Raised for user-facing CLI failures."""
@@ -160,10 +169,8 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
 
 
 def add_annotation_options(parser: argparse.ArgumentParser) -> None:
-    from .pipeline import POSITION_CONFIG
-
     parser.add_argument("--template", default="{filename}", help="annotation template")
-    parser.add_argument("--position", choices=sorted(POSITION_CONFIG), default="top-center")
+    parser.add_argument("--position", choices=POSITION_CHOICES, default="top-center")
     parser.add_argument("--font-size", type=int, default=12)
     parser.add_argument("--margin", type=int, default=24)
     parser.add_argument("--opacity", type=float, default=0.5, help="annotation box opacity")
