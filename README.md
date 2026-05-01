@@ -37,7 +37,7 @@ Runtime dependencies:
 python -m pip install -e ".[dev]"
 ```
 
-## Run
+## Run the desktop app
 
 Either entry point works:
 
@@ -50,6 +50,49 @@ or
 ```powershell
 anm
 ```
+
+## CLI for power users and agents
+
+`anm` with no arguments opens the GUI. Add a command to run the CLI:
+
+```powershell
+anm --help
+anm help merge
+anm --version
+```
+
+Merge explicit PDFs in the order provided:
+
+```powershell
+anm merge .\a.pdf .\b.pdf --output .\output\merged.pdf
+```
+
+Merge all source PDFs in a folder using the same generated-output filtering and natural
+sort order as the GUI:
+
+```powershell
+anm merge-dir .\pdfs --output .\output\merged.pdf --overwrite
+```
+
+Preview the annotation on the first page:
+
+```powershell
+anm preview .\a.pdf --output .\preview.png
+```
+
+Inspect PDFs or verify the local runtime:
+
+```powershell
+anm info .\a.pdf --json
+anm doctor
+```
+
+Useful merge options:
+
+- `--template`, `--position`, `--font-size`, `--margin`, `--opacity`
+- `--overwrite`, `--keep-intermediate`, `--open-folder`
+- `--dry-run` to show inputs, output path, and overwrite status without writing files
+- `--json` for stable machine-readable output
 
 ## Local checks
 
@@ -70,6 +113,7 @@ This creates a PyInstaller build under `dist/AnM/`.
 
 - `src/anm/pipeline.py`: PDF discovery, annotation, merge, preview, cleanup.
 - `src/anm/gui.py`: Tkinter desktop workbench, drag and drop, progress UI.
+- `src/anm/cli.py`: argparse CLI for power users, scripts, and AI agents.
 - `src/anm/app_state.py`: queue ordering and generated-file filtering helpers.
 - `tests/`: unit, integration, and GUI smoke coverage.
 
