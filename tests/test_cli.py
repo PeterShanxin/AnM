@@ -47,6 +47,14 @@ def test_help_command_includes_examples() -> None:
     assert "anm merge" in stdout
 
 
+def test_blank_template_disables_annotation() -> None:
+    args = cli.build_parser().parse_args(["merge", "sample.pdf", "--template", " "])
+
+    options = cli.build_annotation_options(args)
+
+    assert options.text_template == ""
+
+
 def test_subcommand_help_is_captured() -> None:
     code, stdout, stderr = run_cli(["merge", "--help"])
 

@@ -27,6 +27,43 @@ except ImportError:  # pragma: no cover - exercised manually when dependency mis
 BaseTk = TkinterDnD.Tk if TkinterDnD is not None else tk.Tk
 
 
+class Tooltip:
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self.widget = widget
+        self.text = text
+        self.window: tk.Toplevel | None = None
+        widget.bind("<Enter>", self.show)
+        widget.bind("<Leave>", self.hide)
+        widget.bind("<ButtonPress>", self.hide)
+
+    def show(self, _event: object | None = None) -> None:
+        if self.window is not None:
+            return
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() + 8
+        y = self.widget.winfo_rooty()
+        self.window = tk.Toplevel(self.widget)
+        self.window.wm_overrideredirect(True)
+        self.window.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(
+            self.window,
+            text=self.text,
+            justify="left",
+            background="#ffffe0",
+            relief="solid",
+            borderwidth=1,
+            padx=8,
+            pady=5,
+            wraplength=340,
+        )
+        label.pack()
+
+    def hide(self, _event: object | None = None) -> None:
+        if self.window is None:
+            return
+        self.window.destroy()
+        self.window = None
+
+
 class PDFAnnotatorApp(BaseTk):
     def __init__(self) -> None:
         super().__init__()
@@ -152,7 +189,23 @@ class PDFAnnotatorApp(BaseTk):
         settings_frame.grid(row=0, column=0, sticky="ew")
         settings_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(settings_frame, text="Text template").grid(row=0, column=0, sticky="w", pady=4)
+        text_label_frame = ttk.Frame(settings_frame)
+        text_label_frame.grid(row=0, column=0, sticky="w", pady=4)
+        ttk.Label(text_label_frame, text="Annotation text").grid(row=0, column=0, sticky="w")
+        help_label = ttk.Label(
+            text_label_frame,
+            text="?",
+            cursor="question_arrow",
+            font=("Segoe UI", 7, "bold"),
+        )
+        help_label.grid(row=0, column=1, sticky="n", padx=(2, 0), pady=(0, 0))
+        Tooltip(
+            help_label,
+            (
+                "Leave empty to skip text and box.\n"
+                "Fields: {filename}, {stem}, {index}, {page_number}, {total_pages}"
+            ),
+        )
         template_entry = ttk.Entry(settings_frame, textvariable=self.annotation_template_var)
         template_entry.grid(row=0, column=1, sticky="ew", pady=4)
 
@@ -214,14 +267,6 @@ class PDFAnnotatorApp(BaseTk):
             text="Open output folder after merge",
             variable=self.open_folder_var,
         ).grid(row=8, column=0, columnspan=2, sticky="w", pady=4)
-
-        hint = ttk.Label(
-            settings_frame,
-            text="Template fields: {filename}, {stem}, {index}, {page_number}, {total_pages}",
-            wraplength=360,
-            justify="left",
-        )
-        hint.grid(row=9, column=0, columnspan=2, sticky="w", pady=(8, 0))
 
         preview_frame = ttk.LabelFrame(right, text="Preview", padding=12)
         preview_frame.grid(row=1, column=0, sticky="nsew", pady=(12, 0))
@@ -362,7 +407,7 @@ class PDFAnnotatorApp(BaseTk):
 
     def build_annotation_options(self) -> AnnotationOptions:
         return AnnotationOptions(
-            text_template=self.annotation_template_var.get().strip() or "{filename}",
+            text_template=self.annotation_template_var.get().strip(),
             position=self.position_var.get(),
             font_size=int(self.font_size_var.get()),
             margin=int(self.margin_var.get()),

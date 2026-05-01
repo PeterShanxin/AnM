@@ -9,6 +9,7 @@ AnM is a Windows-first desktop app for annotating and merging PDFs with a Tkinte
 - Reorder files before merging.
 - Add a filename-based annotation to every page.
 - Adjust annotation template, position, font size, margin, and box opacity.
+- Leave annotation text empty to merge without adding text or a box.
 - Preview the current overlay on the first selected PDF.
 - Write merged output to `output/annotated-merged.pdf` by default.
 - Optionally keep intermediate annotated PDFs under `output/annotated/`.
@@ -72,6 +73,12 @@ sort order as the GUI:
 
 ```powershell
 anm merge-dir .\pdfs --output .\output\merged.pdf --overwrite
+```
+
+Merge without adding an annotation:
+
+```powershell
+anm merge .\a.pdf .\b.pdf --template "" --output .\output\merged.pdf
 ```
 
 Preview the annotation on the first page:

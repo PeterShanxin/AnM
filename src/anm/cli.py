@@ -430,7 +430,7 @@ def build_annotation_options(args: argparse.Namespace) -> AnnotationOptions:
     if not 0 <= args.opacity <= 1:
         raise CliError("--opacity must be between 0 and 1")
     return AnnotationOptions(
-        text_template=args.template.strip() or "{filename}",
+        text_template=args.template.strip(),
         position=args.position,
         font_size=args.font_size,
         margin=args.margin,

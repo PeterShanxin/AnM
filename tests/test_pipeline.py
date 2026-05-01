@@ -7,7 +7,13 @@ import fitz
 import pytest
 
 from anm.models import AnnotationOptions, RunOptions
-from anm.pipeline import CancelledError, build_annotation_rect, process_pdfs, resolve_output_path
+from anm.pipeline import (
+    CancelledError,
+    annotate_page,
+    build_annotation_rect,
+    process_pdfs,
+    resolve_output_path,
+)
 
 
 def make_pdf(path: Path, text: str) -> None:
@@ -37,6 +43,37 @@ def test_build_annotation_rect_for_top_center() -> None:
     assert rect.y0 == 24
     assert rect.x0 > 0
     assert rect.x1 < 600
+
+
+def test_annotate_page_inserts_resolved_template_text(tmp_path: Path) -> None:
+    source = tmp_path / "sample.pdf"
+    document = fitz.open()
+    page = document.new_page()
+
+    annotate_page(page, source, AnnotationOptions(), file_index=1, page_number=1, total_pages=1)
+
+    assert "sample.pdf" in page.get_text()
+    document.close()
+
+
+def test_annotate_page_skips_blank_template(tmp_path: Path) -> None:
+    source = tmp_path / "sample.pdf"
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((72, 72), "original")
+
+    annotate_page(
+        page,
+        source,
+        AnnotationOptions(text_template=" "),
+        file_index=1,
+        page_number=1,
+        total_pages=1,
+    )
+
+    assert page.get_text().strip() == "original"
+    assert page.get_drawings() == []
+    document.close()
 
 
 def test_process_pdfs_merges_in_selected_order_and_cleans_temp_dir(tmp_path: Path) -> None:

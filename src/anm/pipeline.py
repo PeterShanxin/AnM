@@ -51,10 +51,12 @@ def build_annotation_rect(
     horizontal, vertical = POSITION_CONFIG[options.position]
     padding_x = 6
     padding_y = 4
+    font = fitz.Font("helv")
     text_width = fitz.get_text_length(text, fontsize=options.font_size)
     max_width = max(page_rect.width - (options.margin * 2), 80)
     width = min(text_width + (padding_x * 2), max_width)
-    height = options.font_size + (padding_y * 2)
+    line_height = (font.ascender - font.descender) * options.font_size
+    height = line_height + (padding_y * 2)
 
     if horizontal == "left":
         x0 = options.margin
@@ -88,6 +90,8 @@ def annotate_page(
         page_number,
         total_pages,
     )
+    if not text.strip():
+        return
     rect, align = build_annotation_rect(page.rect, text, options)
     page.draw_rect(
         rect,
