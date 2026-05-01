@@ -8,11 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any, TextIO
 
-import fitz
-
 from .app_state import collect_pdf_files
 from .models import AnnotationOptions, RunOptions
-from .pipeline import POSITION_CONFIG, open_output_folder, process_pdfs, render_preview_png
 
 
 class CliError(RuntimeError):
@@ -163,6 +160,8 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
 
 
 def add_annotation_options(parser: argparse.ArgumentParser) -> None:
+    from .pipeline import POSITION_CONFIG
+
     parser.add_argument("--template", default="{filename}", help="annotation template")
     parser.add_argument("--position", choices=sorted(POSITION_CONFIG), default="top-center")
     parser.add_argument("--font-size", type=int, default=12)
@@ -309,6 +308,8 @@ def run_merge_command(
         return 0
 
     progress_callback = None if args.json else lambda payload: emit_progress(stderr, payload)
+    from .pipeline import open_output_folder, process_pdfs
+
     result = process_pdfs(
         pdf_paths,
         annotation_options,
@@ -343,6 +344,8 @@ def handle_preview(
     source = validate_pdf_paths([args.pdf])[0]
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
+    from .pipeline import render_preview_png
+
     png_bytes = render_preview_png(source, build_annotation_options(args), scale=1.0)
     output.write_bytes(png_bytes)
 
@@ -458,6 +461,8 @@ def validate_pdf_paths(paths: list[Path]) -> list[Path]:
 
 
 def inspect_pdf(path: Path) -> dict[str, Any]:
+    import fitz
+
     with fitz.open(path) as document:
         first_page_size = None
         if document.page_count:
@@ -483,13 +488,18 @@ def doctor_checks() -> dict[str, dict[str, object]]:
             "version": sys.version.split()[0],
             "path": sys.executable,
         },
-        "pymupdf": {
+    }
+    try:
+        import fitz
+
+        checks["pymupdf"] = {
             "ok": True,
             "version": getattr(fitz, "VersionBind", "unknown"),
             "path": str(Path(fitz.__file__).resolve()) if getattr(fitz, "__file__", None) else None,
-        },
-        "tkinterdnd2": dependency_check("tkinterdnd2"),
-    }
+        }
+    except ImportError as exc:
+        checks["pymupdf"] = {"ok": False, "detail": str(exc)}
+    checks["tkinterdnd2"] = dependency_check("tkinterdnd2")
     try:
         from .gui import PDFAnnotatorApp  # noqa: F401
 
