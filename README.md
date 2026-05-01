@@ -6,7 +6,7 @@ AnM is a Windows-first desktop app for annotating and merging PDFs with a Tkinte
 
 - Drag and drop PDF files or folders into the app.
 - Keep a visible merge queue with include or exclude controls.
-- Reorder files before merging.
+- Merge included files in the queue's top-to-bottom order; `Move Up` and `Move Down` change that order.
 - Add a filename-based annotation to every page.
 - Adjust annotation template, position, font size, margin, and box opacity.
 - Leave annotation text empty to merge without adding text or a box.
