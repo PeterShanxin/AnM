@@ -24,3 +24,27 @@ def test_app_instantiates_and_models_file_order(tmp_path: Path) -> None:
     assert "output" in app.output_dir_var.get()
 
     app.destroy()
+
+
+@pytest.mark.skipif(
+    "win" not in __import__("sys").platform and not __import__("os").environ.get("DISPLAY"),
+    reason="Tk requires a display",
+)
+def test_app_uses_custom_output_folder(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    source.write_bytes(b"")
+    custom_output = tmp_path / "chosen"
+    custom_output.mkdir()
+
+    app = PDFAnnotatorApp()
+    app.withdraw()
+    app.add_paths([source])
+    app.custom_output_dir = custom_output
+    app._refresh_output_dir()
+
+    run_options = app.build_run_options(overwrite=True)
+
+    assert run_options.output_dir == custom_output
+    assert app.output_dir_var.get() == str(custom_output)
+
+    app.destroy()

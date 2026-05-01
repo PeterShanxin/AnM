@@ -11,7 +11,7 @@ AnM is a Windows-first desktop app for annotating and merging PDFs with a Tkinte
 - Adjust annotation template, position, font size, margin, and box opacity.
 - Leave annotation text empty to merge without adding text or a box.
 - Preview the current overlay on the first selected PDF.
-- Write merged output to `output/annotated-merged.pdf` by default.
+- Write merged output to `output/annotated-merged.pdf` by default, or choose another output folder.
 - Optionally keep intermediate annotated PDFs under `output/annotated/`.
 - Open the output folder automatically after a successful run.
 
@@ -20,6 +20,7 @@ AnM is a Windows-first desktop app for annotating and merging PDFs with a Tkinte
 - App-generated PDFs are excluded from future discovery so reruns do not re-merge old output.
 - Temporary working files are created under `output/.tmp/` and removed automatically when intermediate files are not being kept.
 - If the merged output already exists, the app asks before overwriting it.
+- The GUI output folder defaults to the first included PDF's `output` folder unless you choose another folder.
 
 ## Requirements
 

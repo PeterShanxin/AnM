@@ -22,3 +22,4 @@ Repo-local guidance for `D:\Repos\AnM`.
 - CLI and GUI must share `src/anm/pipeline.py` behavior instead of duplicating PDF processing logic.
 - Keep file ordering behavior deterministic and reflected exactly in the GUI list.
 - Use repo ignore rules for generated artifacts instead of relying on developers to clean them manually.
+- Keep the default GUI output folder derived from included PDFs, while honoring explicit user-selected output folders.

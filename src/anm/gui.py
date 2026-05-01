@@ -77,6 +77,7 @@ class PDFAnnotatorApp(BaseTk):
         self.cancel_event = threading.Event()
         self.worker_thread: threading.Thread | None = None
         self.preview_image: tk.PhotoImage | None = None
+        self.custom_output_dir: Path | None = None
         self.running = False
 
         self.annotation_template_var = tk.StringVar(value="{filename}")
@@ -250,12 +251,29 @@ class PDFAnnotatorApp(BaseTk):
         output_entry.grid(row=5, column=1, sticky="ew", pady=4)
 
         ttk.Label(settings_frame, text="Output folder").grid(row=6, column=0, sticky="w", pady=4)
+        output_folder_frame = ttk.Frame(settings_frame)
+        output_folder_frame.grid(row=6, column=1, sticky="ew", pady=4)
+        output_folder_frame.columnconfigure(0, weight=1)
         ttk.Label(
-            settings_frame,
+            output_folder_frame,
             textvariable=self.output_dir_var,
-            wraplength=320,
+            wraplength=240,
             justify="left",
-        ).grid(row=6, column=1, sticky="w", pady=4)
+        ).grid(row=0, column=0, sticky="w")
+        self.output_folder_button = ttk.Button(
+            output_folder_frame,
+            text="Browse",
+            command=self.choose_output_folder,
+            width=8,
+        )
+        self.output_folder_button.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self.default_output_folder_button = ttk.Button(
+            output_folder_frame,
+            text="Default",
+            command=self.use_default_output_folder,
+            width=8,
+        )
+        self.default_output_folder_button.grid(row=0, column=2, sticky="e", padx=(4, 0))
 
         ttk.Checkbutton(
             settings_frame,
@@ -311,7 +329,12 @@ class PDFAnnotatorApp(BaseTk):
         self._refresh_preview()
 
     def _refresh_output_dir(self) -> None:
-        self.output_dir_var.set(str(default_output_dir(self.model.get_included_paths())))
+        self.output_dir_var.set(str(self._current_output_dir()))
+
+    def _current_output_dir(self) -> Path:
+        if self.custom_output_dir is not None:
+            return self.custom_output_dir
+        return default_output_dir(self.model.get_included_paths())
 
     def _selected_indices(self) -> list[int]:
         return [int(item_id) for item_id in self.tree.selection()]
@@ -335,6 +358,8 @@ class PDFAnnotatorApp(BaseTk):
             self.up_button,
             self.down_button,
             self.clear_button,
+            self.output_folder_button,
+            self.default_output_folder_button,
             self.start_button,
         ):
             control.config(state=state)
@@ -370,6 +395,19 @@ class PDFAnnotatorApp(BaseTk):
         path = filedialog.askdirectory()
         if path:
             self.add_paths([Path(path)])
+
+    def choose_output_folder(self) -> None:
+        path = filedialog.askdirectory(initialdir=str(self._current_output_dir()))
+        if not path:
+            return
+        self.custom_output_dir = Path(path).resolve()
+        self._refresh_output_dir()
+        self.status_var.set(f"Output folder set to {self.custom_output_dir}")
+
+    def use_default_output_folder(self) -> None:
+        self.custom_output_dir = None
+        self._refresh_output_dir()
+        self.status_var.set(f"Output folder reset to {self.output_dir_var.get()}")
 
     def remove_selected(self) -> None:
         indices = self._selected_indices()
@@ -416,7 +454,7 @@ class PDFAnnotatorApp(BaseTk):
 
     def build_run_options(self, overwrite: bool) -> RunOptions:
         return RunOptions(
-            output_dir=default_output_dir(self.model.get_included_paths()),
+            output_dir=self._current_output_dir(),
             output_filename=self.output_filename_var.get().strip() or "annotated-merged.pdf",
             save_intermediate=self.save_intermediate_var.get(),
             open_folder=self.open_folder_var.get(),
