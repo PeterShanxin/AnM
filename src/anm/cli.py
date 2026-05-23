@@ -164,6 +164,72 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
     doctor.add_argument("--json", action="store_true", help="print machine-readable JSON")
     doctor.set_defaults(handler=handle_doctor)
 
+    split = add_command(
+        "split",
+        help="split a PDF into multiple files",
+        description="Split a PDF by page ranges, every N pages, or each page.",
+        epilog=(
+            "Examples:\n"
+            "  anm split .\\a.pdf --output .\\out\\\n"
+            "  anm split .\\a.pdf --pages 1-3,5 --output .\\out\\"
+        ),
+    )
+    split.add_argument("pdf", type=Path, help="PDF to split")
+    split.add_argument("--pages", default=None, help="page ranges (e.g. 1-3,5)")
+    split.add_argument("--every", type=int, default=None, help="split every N pages")
+    split.add_argument("--output", "-o", required=True, type=Path, help="output directory")
+    split.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    split.set_defaults(handler=handle_split)
+
+    rotate = add_command(
+        "rotate",
+        help="rotate pages in a PDF",
+        description="Rotate selected pages by 90, 180, or 270 degrees.",
+        epilog="Examples:\n  anm rotate .\\a.pdf --angle 90 --output .\\rotated.pdf",
+    )
+    rotate.add_argument("pdf", type=Path, help="PDF to rotate")
+    rotate.add_argument("--angle", type=int, required=True, choices=[90, 180, 270])
+    rotate.add_argument("--pages", default="all", help="page selection (default: all)")
+    rotate.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    rotate.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    rotate.set_defaults(handler=handle_rotate)
+
+    reorder = add_command(
+        "reorder",
+        help="reorder pages in a PDF",
+        description="Rearrange pages by specifying new order.",
+        epilog="Examples:\n  anm reorder .\\a.pdf --order 3,1,2 --output .\\reordered.pdf",
+    )
+    reorder.add_argument("pdf", type=Path, help="PDF to reorder")
+    reorder.add_argument("--order", required=True, help="comma-separated 1-based page order")
+    reorder.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    reorder.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    reorder.set_defaults(handler=handle_reorder)
+
+    del_pages = add_command(
+        "delete-pages",
+        help="delete pages from a PDF",
+        description="Remove selected pages from a PDF.",
+        epilog="Examples:\n  anm delete-pages .\\a.pdf --pages 2,4-6 --output .\\trimmed.pdf",
+    )
+    del_pages.add_argument("pdf", type=Path, help="PDF to modify")
+    del_pages.add_argument("--pages", required=True, help="pages to delete (e.g. 2,4-6)")
+    del_pages.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    del_pages.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    del_pages.set_defaults(handler=handle_delete_pages)
+
+    extract = add_command(
+        "extract",
+        help="extract pages from a PDF",
+        description="Extract selected pages into a new PDF.",
+        epilog="Examples:\n  anm extract .\\a.pdf --pages 1,3,7-9 --output .\\extracted.pdf",
+    )
+    extract.add_argument("pdf", type=Path, help="PDF to extract from")
+    extract.add_argument("--pages", required=True, help="pages to extract (e.g. 1,3,7-9)")
+    extract.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    extract.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    extract.set_defaults(handler=handle_extract)
+
     parser.command_parsers = command_parsers  # type: ignore[attr-defined]
     return parser
 
@@ -420,6 +486,131 @@ def handle_doctor(
             detail = check.get("detail") or check.get("version") or check.get("path") or ""
             stdout.write(f"  {name}: {status} {detail}\n")
     return 0 if ok else 1
+
+
+def handle_split(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.split import SplitMode, SplitOptions, split_pdf
+
+    if args.pages:
+        options = SplitOptions(mode=SplitMode.RANGES, page_spec=args.pages)
+    elif args.every:
+        options = SplitOptions(mode=SplitMode.EVERY_N, every_n=args.every)
+    else:
+        options = SplitOptions(mode=SplitMode.EACH_PAGE)
+
+    result = split_pdf(source, options, output_dir=args.output)
+
+    payload = {
+        "ok": True,
+        "command": "split",
+        "inputs": [str(source)],
+        "outputs": stringify_paths(result.output_paths),
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Split into {len(result.output_paths)} file(s) in {args.output}\n")
+    return 0
+
+
+def handle_rotate(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.rotate import RotateOptions, rotate_pdf
+
+    result = rotate_pdf(
+        source,
+        RotateOptions(angle=args.angle, page_spec=args.pages),
+        output_path=args.output,
+    )
+
+    payload = {
+        "ok": True,
+        "command": "rotate",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "pages_rotated": result.pages_rotated,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Rotated {result.pages_rotated} page(s) → {result.output_path}\n")
+    return 0
+
+
+def handle_reorder(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.reorder import ReorderOptions, reorder_pdf
+
+    order = [int(x.strip()) for x in args.order.split(",")]
+    result = reorder_pdf(source, ReorderOptions(order=order), output_path=args.output)
+
+    payload = {
+        "ok": True,
+        "command": "reorder",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Reordered → {result.output_path}\n")
+    return 0
+
+
+def handle_delete_pages(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.delete_pages import DeletePagesOptions, delete_pages
+
+    result = delete_pages(source, DeletePagesOptions(page_spec=args.pages), output_path=args.output)
+
+    payload = {
+        "ok": True,
+        "command": "delete-pages",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "pages_removed": result.pages_removed,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Removed {result.pages_removed} page(s) → {result.output_path}\n")
+    return 0
+
+
+def handle_extract(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.extract import ExtractOptions, extract_pages
+
+    result = extract_pages(source, ExtractOptions(page_spec=args.pages), output_path=args.output)
+
+    payload = {
+        "ok": True,
+        "command": "extract",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "pages_extracted": result.pages_extracted,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Extracted {result.pages_extracted} page(s) → {result.output_path}\n")
+    return 0
 
 
 def build_annotation_options(args: argparse.Namespace) -> AnnotationOptions:
