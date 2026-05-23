@@ -7,9 +7,9 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from .app_state import FileSelectionModel
-from .models import AnnotationOptions, RunOptions
-from .pipeline import (
+from ..app_state import FileSelectionModel
+from ..models import AnnotationOptions, RunOptions
+from ..pipeline import (
     CancelledError,
     default_output_dir,
     open_output_folder,
@@ -17,63 +17,26 @@ from .pipeline import (
     render_preview_png,
     resolve_output_path,
 )
-
-try:
-    from tkinterdnd2 import DND_FILES, TkinterDnD
-except ImportError:  # pragma: no cover - exercised manually when dependency missing
-    DND_FILES = None
-    TkinterDnD = None
-
-BaseTk = TkinterDnD.Tk if TkinterDnD is not None else tk.Tk
+from .widgets import Tooltip
 
 
-class Tooltip:
-    def __init__(self, widget: tk.Widget, text: str) -> None:
-        self.widget = widget
-        self.text = text
-        self.window: tk.Toplevel | None = None
-        widget.bind("<Enter>", self.show)
-        widget.bind("<Leave>", self.hide)
-        widget.bind("<ButtonPress>", self.hide)
+class AnnotateMergePanel(ttk.Frame):
+    """Panel containing the annotate-and-merge workflow UI."""
 
-    def show(self, _event: object | None = None) -> None:
-        if self.window is not None:
-            return
-        x = self.widget.winfo_rootx() + self.widget.winfo_width() + 8
-        y = self.widget.winfo_rooty()
-        self.window = tk.Toplevel(self.widget)
-        self.window.wm_overrideredirect(True)
-        self.window.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(
-            self.window,
-            text=self.text,
-            justify="left",
-            background="#ffffe0",
-            relief="solid",
-            borderwidth=1,
-            padx=8,
-            pady=5,
-            wraplength=340,
-        )
-        label.pack()
-
-    def hide(self, _event: object | None = None) -> None:
-        if self.window is None:
-            return
-        self.window.destroy()
-        self.window = None
-
-
-class PDFAnnotatorApp(BaseTk):
-    def __init__(self) -> None:
-        super().__init__()
-        self.title("Annotate and Merge PDFs")
-        self.geometry("1180x760")
-        self.minsize(980, 640)
-        self._set_dpi_awareness()
+    def __init__(
+        self,
+        parent: tk.Widget,
+        *,
+        status_var: tk.StringVar,
+        progress_var: tk.DoubleVar,
+        event_queue: queue.Queue[tuple[str, object]],
+    ) -> None:
+        super().__init__(parent)
+        self.status_var = status_var
+        self.progress_var = progress_var
+        self.event_queue = event_queue
 
         self.model = FileSelectionModel()
-        self.event_queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self.cancel_event = threading.Event()
         self.worker_thread: threading.Thread | None = None
         self.preview_image: tk.PhotoImage | None = None
@@ -88,28 +51,16 @@ class PDFAnnotatorApp(BaseTk):
         self.output_filename_var = tk.StringVar(value="annotated-merged.pdf")
         self.save_intermediate_var = tk.BooleanVar(value=False)
         self.open_folder_var = tk.BooleanVar(value=True)
-        self.status_var = tk.StringVar(value="Add a folder or drag PDFs into the window.")
         self.output_dir_var = tk.StringVar(value=str(default_output_dir([])))
-        self.progress_var = tk.DoubleVar(value=0.0)
 
         self._build_ui()
         self._refresh_list()
         self._refresh_output_dir()
-        self.after(100, self._drain_events)
-
-    def _set_dpi_awareness(self) -> None:
-        try:
-            from ctypes import windll
-
-            windll.shcore.SetProcessDpiAwareness(1)
-        except Exception:
-            return
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=3)
         self.columnconfigure(1, weight=2)
         self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=0)
 
         left = ttk.Frame(self, padding=12)
         right = ttk.Frame(self, padding=(0, 12, 12, 12))
@@ -181,10 +132,6 @@ class PDFAnnotatorApp(BaseTk):
         self.tree.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(10, 0))
         self.tree.bind("<<TreeviewSelect>>", lambda _event: self._refresh_preview())
         self.tree.bind("<Double-1>", self._toggle_selected_included)
-
-        if DND_FILES is not None:
-            self.drop_target_register(DND_FILES)
-            self.dnd_bind("<<Drop>>", self._handle_drop)
 
         settings_frame = ttk.LabelFrame(right, text="Run Settings", padding=12)
         settings_frame.grid(row=0, column=0, sticky="ew")
@@ -311,9 +258,6 @@ class PDFAnnotatorApp(BaseTk):
         self.start_button.grid(row=0, column=1, padx=4)
         self.cancel_button.grid(row=0, column=2, padx=4)
 
-        status = ttk.Label(self, textvariable=self.status_var, padding=(12, 0, 12, 12), anchor="w")
-        status.grid(row=1, column=0, columnspan=2, sticky="ew")
-
         for variable in (
             self.annotation_template_var,
             self.position_var,
@@ -323,6 +267,10 @@ class PDFAnnotatorApp(BaseTk):
             self.output_filename_var,
         ):
             variable.trace_add("write", lambda *_args: self._on_settings_changed())
+
+    # ------------------------------------------------------------------
+    # Settings / output helpers
+    # ------------------------------------------------------------------
 
     def _on_settings_changed(self) -> None:
         self._refresh_output_dir()
@@ -335,6 +283,10 @@ class PDFAnnotatorApp(BaseTk):
         if self.custom_output_dir is not None:
             return self.custom_output_dir
         return default_output_dir(self.model.get_included_paths())
+
+    # ------------------------------------------------------------------
+    # Tree helpers
+    # ------------------------------------------------------------------
 
     def _selected_indices(self) -> list[int]:
         return [int(item_id) for item_id in self.tree.selection()]
@@ -364,6 +316,10 @@ class PDFAnnotatorApp(BaseTk):
         ):
             control.config(state=state)
         self.cancel_button.config(state="normal" if running else "disabled")
+
+    # ------------------------------------------------------------------
+    # DnD / file operations
+    # ------------------------------------------------------------------
 
     def _handle_drop(self, event: object) -> None:
         raw_data = getattr(event, "data", "")
@@ -443,6 +399,10 @@ class PDFAnnotatorApp(BaseTk):
         self._refresh_preview()
         self.status_var.set("Selection cleared.")
 
+    # ------------------------------------------------------------------
+    # Options builders
+    # ------------------------------------------------------------------
+
     def build_annotation_options(self) -> AnnotationOptions:
         return AnnotationOptions(
             text_template=self.annotation_template_var.get().strip(),
@@ -460,6 +420,10 @@ class PDFAnnotatorApp(BaseTk):
             open_folder=self.open_folder_var.get(),
             overwrite=overwrite,
         )
+
+    # ------------------------------------------------------------------
+    # Preview
+    # ------------------------------------------------------------------
 
     def _first_selected_path(self) -> Path | None:
         indices = self._selected_indices()
@@ -488,6 +452,10 @@ class PDFAnnotatorApp(BaseTk):
         except Exception as exc:
             self.preview_image = None
             self.preview_label.configure(image="", text=f"Preview unavailable: {exc}")
+
+    # ------------------------------------------------------------------
+    # Merge execution
+    # ------------------------------------------------------------------
 
     def start_merge(self) -> None:
         included_paths = self.model.get_included_paths()
@@ -536,19 +504,17 @@ class PDFAnnotatorApp(BaseTk):
         self.cancel_event.set()
         self.status_var.set("Cancellation requested...")
 
-    def _drain_events(self) -> None:
-        while True:
-            try:
-                event_type, payload = self.event_queue.get_nowait()
-            except queue.Empty:
-                break
-            if event_type == "progress":
-                self._handle_progress(payload)
-            elif event_type == "result":
-                self._handle_result(payload)
-            elif event_type == "error":
-                self._handle_error(payload)
-        self.after(100, self._drain_events)
+    # ------------------------------------------------------------------
+    # Event handling (called by hub's drain loop)
+    # ------------------------------------------------------------------
+
+    def _handle_event(self, event_type: str, payload: object) -> None:
+        if event_type == "progress":
+            self._handle_progress(payload)
+        elif event_type == "result":
+            self._handle_result(payload)
+        elif event_type == "error":
+            self._handle_error(payload)
 
     def _handle_progress(self, payload: object) -> None:
         assert isinstance(payload, dict)
