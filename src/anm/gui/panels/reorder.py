@@ -6,7 +6,6 @@ from __future__ import annotations
 import queue
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
 
 from ..styles import SURFACE, TEXT_MUTED, body, label_font
 from ...tools.reorder import ReorderOptions, reorder_pdf
