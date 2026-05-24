@@ -159,3 +159,25 @@ def test_delete_pages_panel_builds_options() -> None:
         assert opts.page_spec == "2, 4-6"
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_extract_panel_builds_options() -> None:
+    import queue
+    import tkinter as tk
+    from anm.gui.panels.extract import ExtractPanel
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        panel = ExtractPanel(
+            root,
+            status_var=tk.StringVar(),
+            progress_var=tk.DoubleVar(),
+            event_queue=queue.Queue(),
+        )
+        panel._page_spec_var.set("1-3,5")
+        opts = panel._build_options()
+        assert opts.page_spec == "1-3,5"
+    finally:
+        root.destroy()
