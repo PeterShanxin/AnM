@@ -56,3 +56,38 @@ def test_base_panel_has_header_and_split_layout(tmp_path: Path) -> None:
         assert panel._source_path is None
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_split_panel_builds_options_for_each_mode() -> None:
+    import queue
+    import tkinter as tk
+    from anm.gui.panels.split import SplitPanel
+    from anm.tools.split import SplitMode
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        panel = SplitPanel(
+            root,
+            status_var=tk.StringVar(),
+            progress_var=tk.DoubleVar(),
+            event_queue=queue.Queue(),
+        )
+        # default mode
+        opts = panel._build_options()
+        assert opts.mode == SplitMode.EACH_PAGE
+
+        panel._mode_var.set("ranges")
+        panel._range_var.set("1-3,5")
+        opts = panel._build_options()
+        assert opts.mode == SplitMode.RANGES
+        assert opts.page_spec == "1-3,5"
+
+        panel._mode_var.set("every_n")
+        panel._every_n_var.set(3)
+        opts = panel._build_options()
+        assert opts.mode == SplitMode.EVERY_N
+        assert opts.every_n == 3
+    finally:
+        root.destroy()
