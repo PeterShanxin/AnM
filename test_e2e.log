@@ -1,7 +1,0 @@
-============================= test session starts =============================
-platform win32 -- Python 3.14.3, pytest-8.4.2, pluggy-1.6.0 -- D:\Repos\AnM\.venv\Scripts\python.exe
-cachedir: .pytest_cache
-rootdir: D:\Repos\AnM
-configfile: pyproject.toml
-collecting ... collected 1 item
-
