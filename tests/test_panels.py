@@ -202,8 +202,6 @@ def test_hub_can_navigate_to_each_phase1_tool() -> None:
 @pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
 def test_split_panel_runs_each_page_end_to_end(tmp_path: Path) -> None:
     import queue
-    import threading
-    import time
     import tkinter as tk
     from anm.gui.panels.split import SplitPanel
 
@@ -222,17 +220,16 @@ def test_split_panel_runs_each_page_end_to_end(tmp_path: Path) -> None:
         panel._load_pdf(pdf)
         panel.output_dir_var.set(str(out_dir))
         panel._on_run_clicked()
-        # Wait for the worker thread to finish.
-        for _ in range(50):
-            if not panel._running and not panel.event_queue.empty():
-                break
-            time.sleep(0.05)
-            # Pump the queue ourselves (no mainloop running).
-            try:
-                evt_type, payload = panel.event_queue.get_nowait()
-                panel._handle_event(evt_type, payload)
-            except queue.Empty:
-                pass
+        # Block until worker thread completes (daemon=True, so safe in tests).
+        assert panel._worker is not None
+        panel._worker.join(timeout=30)
+        assert not panel._worker.is_alive(), "Worker thread did not finish in time"
+        # Pump the result event so _handle_event updates state.
+        try:
+            evt_type, payload = panel.event_queue.get_nowait()
+            panel._handle_event(evt_type, payload)
+        except queue.Empty:
+            pass
         assert len(list(out_dir.glob("*.pdf"))) == 3
     finally:
         root.destroy()

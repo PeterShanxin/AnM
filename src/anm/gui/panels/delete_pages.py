@@ -62,7 +62,8 @@ class DeletePagesPanel(BaseToolPanel):
     def _build_options(self) -> DeletePagesOptions:
         return DeletePagesOptions(page_spec=self._page_spec_var.get())
 
-    def _execute(self, source: Path, output_dir: Path) -> str:
+    def _execute(self, source: Path, output_dir: Path, options: object) -> str:
+        assert isinstance(options, DeletePagesOptions)
         out_path = output_dir / f"{source.stem}_trimmed.pdf"
-        delete_pages(source, self._build_options(), output_path=out_path)
+        delete_pages(source, options, output_path=out_path)
         return f"Saved → {out_path.name}"

@@ -62,7 +62,8 @@ class ExtractPanel(BaseToolPanel):
     def _build_options(self) -> ExtractOptions:
         return ExtractOptions(page_spec=self._page_spec_var.get())
 
-    def _execute(self, source: Path, output_dir: Path) -> str:
+    def _execute(self, source: Path, output_dir: Path, options: object) -> str:
+        assert isinstance(options, ExtractOptions)
         out_path = output_dir / f"{source.stem}_extract.pdf"
-        extract_pages(source, self._build_options(), output_path=out_path)
+        extract_pages(source, options, output_path=out_path)
         return f"Saved → {out_path.name}"

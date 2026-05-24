@@ -207,8 +207,20 @@ class BaseToolPanel(ttk.Frame):
             self._build_inspector(self.inspector_area)
         """
 
-    def _execute(self, source: Path, output_dir: Path) -> str:
-        """Subclass runs the tool and returns a one-line success summary."""
+    def _build_options(self) -> object:
+        """Override to return the tool's Options dataclass, built from Tk vars.
+
+        Called on the **main thread** by ``_on_run_clicked`` before the worker
+        thread starts — never call Tk vars from the worker thread.
+        """
+        return None  # type: ignore[return-value]
+
+    def _execute(self, source: Path, output_dir: Path, options: object) -> str:
+        """Subclass runs the tool and returns a one-line success summary.
+
+        *options* is the pre-built result of ``_build_options()``, captured
+        on the main thread so Tk variables are never accessed from the worker.
+        """
         raise NotImplementedError
 
     # ------------------------------------------------------------------
@@ -265,9 +277,14 @@ class BaseToolPanel(ttk.Frame):
         self._running = True
         self._run_btn.state(["disabled"])
 
+        # Snapshot Tk variable state on the main thread — Tk vars are not
+        # thread-safe and must not be read from the worker thread.
+        options = self._build_options()
+        source = self._source_path
+
         def _worker() -> None:
             try:
-                summary = self._execute(self._source_path, out_dir)
+                summary = self._execute(source, out_dir, options)
                 self.event_queue.put(("done", summary))
             except Exception as exc:  # noqa: BLE001 - surface to user
                 self.event_queue.put(("error", str(exc)))

@@ -56,7 +56,8 @@ class RotatePanel(BaseToolPanel):
             angle=self._angle_var.get(),
         )
 
-    def _execute(self, source: Path, output_dir: Path) -> str:
+    def _execute(self, source: Path, output_dir: Path, options: object) -> str:
+        assert isinstance(options, RotateOptions)
         out_path = output_dir / f"{source.stem}_rotated.pdf"
-        result = rotate_pdf(source, self._build_options(), output_path=out_path)
+        result = rotate_pdf(source, options, output_path=out_path)
         return f"Rotated {result.pages_rotated} page(s) → {out_path.name}"

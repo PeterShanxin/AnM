@@ -59,7 +59,8 @@ class ReorderPanel(BaseToolPanel):
         order = [int(p) for p in parts]
         return ReorderOptions(order=order)
 
-    def _execute(self, source: Path, output_dir: Path) -> str:
+    def _execute(self, source: Path, output_dir: Path, options: object) -> str:
+        assert isinstance(options, ReorderOptions)
         out_path = output_dir / f"{source.stem}_reordered.pdf"
-        reorder_pdf(source, self._build_options(), output_path=out_path)
+        reorder_pdf(source, options, output_path=out_path)
         return f"Reordered → {out_path.name}"

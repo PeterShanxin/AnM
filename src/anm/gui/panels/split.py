@@ -109,6 +109,7 @@ class SplitPanel(BaseToolPanel):
             every_n=self._every_n_var.get(),
         )
 
-    def _execute(self, source: Path, output_dir: Path) -> str:
-        result = split_pdf(source, self._build_options(), output_dir=output_dir)
+    def _execute(self, source: Path, output_dir: Path, options: object) -> str:
+        assert isinstance(options, SplitOptions)
+        result = split_pdf(source, options, output_dir=output_dir)
         return f"Wrote {len(result.output_paths)} file(s) to {output_dir}"
