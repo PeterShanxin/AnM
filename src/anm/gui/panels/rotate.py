@@ -21,6 +21,7 @@ class RotatePanel(BaseToolPanel):
         status_var: tk.StringVar,
         progress_var: tk.DoubleVar,
         event_queue: queue.Queue[tuple[str, object]],
+        **kwargs: object,
     ) -> None:
         self._page_spec_var = tk.StringVar(value="all")
         self._angle_var = tk.IntVar(value=90)
@@ -30,6 +31,7 @@ class RotatePanel(BaseToolPanel):
             status_var=status_var,
             progress_var=progress_var,
             event_queue=event_queue,
+            **kwargs,
         )
         self._build_inspector(self.inspector_area)
 

@@ -21,6 +21,7 @@ class SplitPanel(BaseToolPanel):
         status_var: tk.StringVar,
         progress_var: tk.DoubleVar,
         event_queue: queue.Queue[tuple[str, object]],
+        **kwargs: object,
     ) -> None:
         self._mode_var = tk.StringVar(value="each_page")
         self._range_var = tk.StringVar(value="1-")
@@ -31,6 +32,7 @@ class SplitPanel(BaseToolPanel):
             status_var=status_var,
             progress_var=progress_var,
             event_queue=event_queue,
+            **kwargs,
         )
         self._build_inspector(self.inspector_area)
 

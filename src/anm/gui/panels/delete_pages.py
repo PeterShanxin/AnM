@@ -21,6 +21,7 @@ class DeletePagesPanel(BaseToolPanel):
         status_var: tk.StringVar,
         progress_var: tk.DoubleVar,
         event_queue: queue.Queue[tuple[str, object]],
+        **kwargs: object,
     ) -> None:
         self._page_spec_var = tk.StringVar(value="")
         super().__init__(
@@ -29,6 +30,7 @@ class DeletePagesPanel(BaseToolPanel):
             status_var=status_var,
             progress_var=progress_var,
             event_queue=event_queue,
+            **kwargs,
         )
         self._page_spec_var.trace_add("write", lambda *_: self._update_marks())
         self._build_inspector(self.inspector_area)
