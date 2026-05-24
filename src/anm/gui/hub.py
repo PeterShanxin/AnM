@@ -278,9 +278,18 @@ class PDFToolkitApp(BaseTk):
     def _drain_events(self) -> None:
         while True:
             try:
-                event_type, payload, panel = self.event_queue.get_nowait()
+                item = self.event_queue.get_nowait()
             except queue.Empty:
                 break
+            # Phase 1 panels include the panel ref as a 3rd element so events
+            # are routed to the launching panel even after navigation.
+            # Legacy panels (e.g. AnnotateMergePanel) post 2-tuples; fall back
+            # to _active_panel for those.
+            if len(item) == 3:
+                event_type, payload, panel = item
+            else:
+                event_type, payload = item  # type: ignore[misc]
+                panel = self._active_panel
             if panel is not None and hasattr(panel, "_handle_event"):
                 panel._handle_event(event_type, payload)
         self.after(100, self._drain_events)
