@@ -9,7 +9,7 @@ from typing import Callable
 
 import fitz
 
-from ..styles import BG, BORDER_STRONG, SURFACE, TEXT_SUBTLE, label_font
+from ..styles import ACCENT, BG, BORDER_STRONG, DANGER, SURFACE, TEXT_SUBTLE, label_font
 
 # Default thumbnail width in pixels (height derives from page aspect).
 _THUMB_W = 80
@@ -21,8 +21,8 @@ class PageThumbGrid(tk.Frame):
 
     Optional click handling: pass ``on_page_click(page_idx)`` to receive
     0-based page indices when the user clicks a thumbnail.  The grid also
-    exposes ``marked_pages`` so tool panels can highlight pages (e.g. as
-    deletion or split-point markers) by calling ``mark(indices, style)``.
+    exposes a ``mark(indices, style)`` method so tool panels can highlight
+    pages (e.g. as deletion or split-point markers).
     """
 
     def __init__(
@@ -152,7 +152,7 @@ class PageThumbGrid(tk.Frame):
         self._cards[idx] = card
 
     def _relayout(self) -> None:
-        """Place cards in a 6-column grid (re-runs when window resizes)."""
+        """Place cards in a 6-column grid."""
         cols = 6
         for i, (idx, card) in enumerate(sorted(self._cards.items())):
             card.grid_forget()
@@ -171,8 +171,8 @@ class PageThumbGrid(tk.Frame):
         if card is None:
             return
         if style == "select":
-            card.config(highlightbackground="#0067c0", highlightthickness=2)
+            card.config(highlightbackground=ACCENT, highlightthickness=2)
         elif style == "delete":
-            card.config(highlightbackground="#c42b1c", highlightthickness=2)
+            card.config(highlightbackground=DANGER, highlightthickness=2)
         else:
             card.config(highlightbackground=BORDER_STRONG, highlightthickness=1)
