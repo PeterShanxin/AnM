@@ -33,3 +33,26 @@ def test_page_thumb_grid_loads_pdf(tmp_path: Path) -> None:
         assert grid.page_count == 4
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_base_panel_has_header_and_split_layout(tmp_path: Path) -> None:
+    import queue
+    import tkinter as tk
+    from anm.gui.panels._base import BaseToolPanel
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        panel = BaseToolPanel(
+            root,
+            tool_id="split",
+            status_var=tk.StringVar(),
+            progress_var=tk.DoubleVar(),
+            event_queue=queue.Queue(),
+        )
+        assert panel.content_area is not None
+        assert panel.inspector_area is not None
+        assert panel._source_path is None
+    finally:
+        root.destroy()
