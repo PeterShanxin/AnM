@@ -250,6 +250,8 @@ class BaseToolPanel(ttk.Frame):
         self._source_path = path
         self.status_var.set(f"Loaded {path.name}")
         self._grid.load_pdf(path)
+        if self.custom_output_dir is None:
+            self.output_dir_var.set(str(path.parent))
         self._on_pdf_loaded()
 
     def _on_pdf_loaded(self) -> None:
@@ -293,12 +295,14 @@ class BaseToolPanel(ttk.Frame):
         # Snapshot source path on the main thread alongside options.
         source = self._source_path
 
+        panel = self  # capture panel ref so hub routes event back here
+
         def _worker() -> None:
             try:
                 summary = self._execute(source, out_dir, options)
-                self.event_queue.put(("done", summary))
+                self.event_queue.put(("done", summary, panel))
             except Exception as exc:  # noqa: BLE001 - surface to user
-                self.event_queue.put(("error", str(exc)))
+                self.event_queue.put(("error", str(exc), panel))
 
         self._worker = threading.Thread(target=_worker, daemon=True)
         self._worker.start()

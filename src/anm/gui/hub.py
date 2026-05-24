@@ -278,13 +278,11 @@ class PDFToolkitApp(BaseTk):
     def _drain_events(self) -> None:
         while True:
             try:
-                event_type, payload = self.event_queue.get_nowait()
+                event_type, payload, panel = self.event_queue.get_nowait()
             except queue.Empty:
                 break
-            if self._active_panel is not None and hasattr(
-                self._active_panel, "_handle_event"
-            ):
-                self._active_panel._handle_event(event_type, payload)
+            if panel is not None and hasattr(panel, "_handle_event"):
+                panel._handle_event(event_type, payload)
         self.after(100, self._drain_events)
 
     # ------------------------------------------------------------------

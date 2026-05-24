@@ -233,8 +233,8 @@ def test_split_panel_runs_each_page_end_to_end(tmp_path: Path) -> None:
         assert not panel._worker.is_alive(), "Worker thread did not finish in time"
         # Pump the result event so _handle_event updates state.
         try:
-            evt_type, payload = panel.event_queue.get_nowait()
-            panel._handle_event(evt_type, payload)
+            evt_type, payload, _panel = panel.event_queue.get_nowait()
+            _panel._handle_event(evt_type, payload)
         except queue.Empty:
             pass
         assert len(list(out_dir.glob("*.pdf"))) == 3
