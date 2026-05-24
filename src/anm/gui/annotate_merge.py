@@ -482,18 +482,22 @@ class AnnotateMergePanel(ttk.Frame):
         self.status_var.set("Starting merge...")
         annotation_options = self.build_annotation_options()
 
+        panel = self  # capture ref so hub routes events here even after navigation
+
         def worker() -> None:
             try:
                 result = process_pdfs(
                     included_paths,
                     annotation_options,
                     run_options,
-                    progress_callback=lambda payload: self.event_queue.put(("progress", payload)),
+                    progress_callback=lambda payload: self.event_queue.put(
+                        ("progress", payload, panel)
+                    ),
                     cancel_event=self.cancel_event,
                 )
-                self.event_queue.put(("result", result))
+                self.event_queue.put(("result", result, panel))
             except Exception as exc:
-                self.event_queue.put(("error", exc))
+                self.event_queue.put(("error", exc, panel))
 
         self.worker_thread = threading.Thread(target=worker, daemon=True)
         self.worker_thread.start()
