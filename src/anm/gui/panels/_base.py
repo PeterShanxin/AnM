@@ -274,12 +274,19 @@ class BaseToolPanel(ttk.Frame):
             messagebox.showerror("Output directory", f"Cannot create folder: {exc}")
             return
 
+        # Validate options before disabling the Run button.
+        # If _build_options() raises (e.g. invalid page order), we must not
+        # leave _running=True with the button permanently disabled.
+        try:
+            options = self._build_options()
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Invalid options", str(exc))
+            return
+
         self._running = True
         self._run_btn.state(["disabled"])
 
-        # Snapshot Tk variable state on the main thread — Tk vars are not
-        # thread-safe and must not be read from the worker thread.
-        options = self._build_options()
+        # Snapshot source path on the main thread alongside options.
         source = self._source_path
 
         def _worker() -> None:
