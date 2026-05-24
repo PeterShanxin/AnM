@@ -115,3 +115,25 @@ def test_rotate_panel_builds_options() -> None:
         assert opts.angle == 180
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_reorder_panel_parses_order() -> None:
+    import queue
+    import tkinter as tk
+    from anm.gui.panels.reorder import ReorderPanel
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        panel = ReorderPanel(
+            root,
+            status_var=tk.StringVar(),
+            progress_var=tk.DoubleVar(),
+            event_queue=queue.Queue(),
+        )
+        panel._order_var.set("3, 1, 2")
+        opts = panel._build_options()
+        assert opts.order == [3, 1, 2]
+    finally:
+        root.destroy()
