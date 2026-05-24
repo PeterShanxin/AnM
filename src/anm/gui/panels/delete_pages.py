@@ -40,7 +40,9 @@ class DeletePagesPanel(BaseToolPanel):
         section = tk.Frame(parent, bg=SURFACE)
         section.grid(row=0, column=0, sticky="new", padx=16, pady=16)
 
-        tk.Label(section, text="PAGES TO DELETE", bg=SURFACE, fg=TEXT_MUTED, font=label_font(10)).pack(anchor="w", pady=(0, 4))
+        tk.Label(
+            section, text="PAGES TO DELETE", bg=SURFACE, fg=TEXT_MUTED, font=label_font(10)
+        ).pack(anchor="w", pady=(0, 4))
         tk.Entry(section, textvariable=self._page_spec_var, font=body(11)).pack(fill="x")
         tk.Label(
             section,

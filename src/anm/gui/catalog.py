@@ -31,25 +31,25 @@ CATEGORIES: tuple[CategoryDef, ...] = (
 
 TOOLS: tuple[ToolDef, ...] = (
     # ── Organize ──────────────────────────────────────────────────────────────
-    ToolDef("merge",    "Merge",          "organize", "Combine multiple PDFs into one",        "⊕", "annotate_merge"),
-    ToolDef("split",    "Split",          "organize", "Break a PDF into parts",                "⋮", "split"),
-    ToolDef("reorder",  "Reorder",        "organize", "Rearrange pages in any order",          "↕", "reorder"),
-    ToolDef("delete",   "Delete Pages",   "organize", "Remove specific pages",                 "⊖", "delete_pages"),
-    ToolDef("rotate",   "Rotate",         "organize", "Rotate pages 90/180/270°",              "↺", "rotate"),
-    ToolDef("extract",  "Extract",        "organize", "Pull pages into a new PDF",             "↑", "extract"),
+    ToolDef("merge", "Merge", "organize", "Combine multiple PDFs into one", "⊕", "annotate_merge"),
+    ToolDef("split", "Split", "organize", "Break a PDF into parts", "⋮", "split"),
+    ToolDef("reorder", "Reorder", "organize", "Rearrange pages in any order", "↕", "reorder"),
+    ToolDef("delete", "Delete Pages", "organize", "Remove specific pages", "⊖", "delete_pages"),
+    ToolDef("rotate", "Rotate", "organize", "Rotate pages 90/180/270°", "↺", "rotate"),
+    ToolDef("extract", "Extract", "organize", "Pull pages into a new PDF", "↑", "extract"),
     # ── Edit ──────────────────────────────────────────────────────────────────
-    ToolDef("annotate", "Annotate",       "edit",     "Add notes, highlights, shapes",         "✎", None),
-    ToolDef("watermark","Watermark",      "edit",     "Stamp text or image over pages",        "◎", None),
-    ToolDef("numbers",  "Page Numbers",   "edit",     "Add page numbering",                    "#", None),
-    ToolDef("metadata", "Metadata",       "edit",     "Edit title, author, keywords",          "≡", None),
+    ToolDef("annotate", "Annotate", "edit", "Add notes, highlights, shapes", "✎", None),
+    ToolDef("watermark", "Watermark", "edit", "Stamp text or image over pages", "◎", None),
+    ToolDef("numbers", "Page Numbers", "edit", "Add page numbering", "#", None),
+    ToolDef("metadata", "Metadata", "edit", "Edit title, author, keywords", "≡", None),
     # ── Convert ───────────────────────────────────────────────────────────────
-    ToolDef("images",   "PDF ⇄ Images",   "convert",  "Convert to/from PNG, JPG",              "⇄", None),
-    ToolDef("compress", "Compress",       "convert",  "Reduce file size",                      "▽", None),
-    ToolDef("ocr",      "OCR",            "convert",  "Recognize text from scans",             "T", None),
+    ToolDef("images", "PDF ⇄ Images", "convert", "Convert to/from PNG, JPG", "⇄", None),
+    ToolDef("compress", "Compress", "convert", "Reduce file size", "▽", None),
+    ToolDef("ocr", "OCR", "convert", "Recognize text from scans", "T", None),
     # ── Secure ────────────────────────────────────────────────────────────────
-    ToolDef("protect",  "Protect/Unlock", "secure",   "Add or remove a password",              "⊛", None),
-    ToolDef("flatten",  "Flatten",        "secure",   "Lock form fields & annotations",        "≡", None),
-    ToolDef("compare",  "Compare",        "secure",   "Diff two PDFs side-by-side",            "⊞", None),
+    ToolDef("protect", "Protect/Unlock", "secure", "Add or remove a password", "⊛", None),
+    ToolDef("flatten", "Flatten", "secure", "Lock form fields & annotations", "≡", None),
+    ToolDef("compare", "Compare", "secure", "Diff two PDFs side-by-side", "⊞", None),
 )
 
 

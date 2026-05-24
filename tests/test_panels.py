@@ -21,6 +21,7 @@ def _make_pdf(path: Path, num_pages: int = 3) -> Path:
 @pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
 def test_page_thumb_grid_loads_pdf(tmp_path: Path) -> None:
     import tkinter as tk
+
     from anm.gui.panels._page_grid import PageThumbGrid
 
     pdf = _make_pdf(tmp_path / "src.pdf", num_pages=4)
@@ -39,6 +40,7 @@ def test_page_thumb_grid_loads_pdf(tmp_path: Path) -> None:
 def test_base_panel_has_header_and_split_layout(tmp_path: Path) -> None:
     import queue
     import tkinter as tk
+
     from anm.gui.panels._base import BaseToolPanel
 
     root = tk.Tk()
@@ -62,6 +64,7 @@ def test_base_panel_has_header_and_split_layout(tmp_path: Path) -> None:
 def test_split_panel_builds_options_for_each_mode() -> None:
     import queue
     import tkinter as tk
+
     from anm.gui.panels.split import SplitPanel
     from anm.tools.split import SplitMode
 
@@ -97,6 +100,7 @@ def test_split_panel_builds_options_for_each_mode() -> None:
 def test_rotate_panel_builds_options() -> None:
     import queue
     import tkinter as tk
+
     from anm.gui.panels.rotate import RotatePanel
 
     root = tk.Tk()
@@ -121,6 +125,7 @@ def test_rotate_panel_builds_options() -> None:
 def test_reorder_panel_parses_order() -> None:
     import queue
     import tkinter as tk
+
     from anm.gui.panels.reorder import ReorderPanel
 
     root = tk.Tk()
@@ -143,6 +148,7 @@ def test_reorder_panel_parses_order() -> None:
 def test_delete_pages_panel_builds_options() -> None:
     import queue
     import tkinter as tk
+
     from anm.gui.panels.delete_pages import DeletePagesPanel
 
     root = tk.Tk()
@@ -165,6 +171,7 @@ def test_delete_pages_panel_builds_options() -> None:
 def test_extract_panel_builds_options() -> None:
     import queue
     import tkinter as tk
+
     from anm.gui.panels.extract import ExtractPanel
 
     root = tk.Tk()
@@ -185,7 +192,6 @@ def test_extract_panel_builds_options() -> None:
 
 @pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
 def test_hub_can_navigate_to_each_phase1_tool() -> None:
-    import tkinter as tk
     from anm.gui import PDFAnnotatorApp
 
     app = PDFAnnotatorApp()
@@ -203,6 +209,7 @@ def test_hub_can_navigate_to_each_phase1_tool() -> None:
 def test_split_panel_runs_each_page_end_to_end(tmp_path: Path) -> None:
     import queue
     import tkinter as tk
+
     from anm.gui.panels.split import SplitPanel
 
     pdf = _make_pdf(tmp_path / "src.pdf", num_pages=3)

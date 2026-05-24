@@ -120,7 +120,9 @@ class BaseToolPanel(ttk.Frame):
         # Buttons
         btn_box = tk.Frame(hdr, bg=SURFACE)
         btn_box.grid(row=0, column=3, sticky="e", padx=(0, 20), pady=14)
-        ttk.Button(btn_box, text="Open file", command=self._open_file).pack(side="left", padx=(0, 8))
+        ttk.Button(btn_box, text="Open file", command=self._open_file).pack(
+            side="left", padx=(0, 8)
+        )
         self._run_btn = ttk.Button(btn_box, text=self._run_label(), command=self._on_run_clicked)
         self._run_btn.pack(side="left")
 
@@ -163,7 +165,9 @@ class BaseToolPanel(ttk.Frame):
 
         row = tk.Frame(self._footer, bg=SURFACE)
         row.pack(fill="x")
-        tk.Entry(row, textvariable=self.output_dir_var, font=body(11)).pack(side="left", fill="x", expand=True)
+        tk.Entry(row, textvariable=self.output_dir_var, font=body(11)).pack(
+            side="left", fill="x", expand=True
+        )
         ttk.Button(row, text="…", width=3, command=self._choose_output_dir).pack(side="left", padx=(4, 0))
 
         # Status line

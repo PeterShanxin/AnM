@@ -40,15 +40,27 @@ class RotatePanel(BaseToolPanel):
         section = tk.Frame(parent, bg=SURFACE)
         section.grid(row=0, column=0, sticky="new", padx=16, pady=16)
 
-        tk.Label(section, text="PAGES", bg=SURFACE, fg=TEXT_MUTED, font=label_font(10)).pack(anchor="w", pady=(0, 4))
+        tk.Label(
+            section, text="PAGES", bg=SURFACE, fg=TEXT_MUTED, font=label_font(10)
+        ).pack(anchor="w", pady=(0, 4))
         tk.Entry(section, textvariable=self._page_spec_var, font=body(11)).pack(fill="x")
-        tk.Label(section, text='Use "all" or e.g. "1-3, 5"', bg=SURFACE, fg=TEXT_MUTED, font=label_font(10)).pack(anchor="w", pady=(2, 0))
+        tk.Label(
+            section,
+            text='Use "all" or e.g. "1-3, 5"',
+            bg=SURFACE,
+            fg=TEXT_MUTED,
+            font=label_font(10),
+        ).pack(anchor="w", pady=(2, 0))
 
-        tk.Label(section, text="ANGLE", bg=SURFACE, fg=TEXT_MUTED, font=label_font(10)).pack(anchor="w", pady=(12, 4))
+        tk.Label(
+            section, text="ANGLE", bg=SURFACE, fg=TEXT_MUTED, font=label_font(10)
+        ).pack(anchor="w", pady=(12, 4))
         angles = tk.Frame(section, bg=SURFACE)
         angles.pack(fill="x")
         for angle in (90, 180, 270):
-            ttk.Radiobutton(angles, text=f"{angle}°", value=angle, variable=self._angle_var).pack(side="left", padx=(0, 12))
+            ttk.Radiobutton(
+                angles, text=f"{angle}°", value=angle, variable=self._angle_var
+            ).pack(side="left", padx=(0, 12))
 
     def _build_options(self) -> RotateOptions:
         return RotateOptions(
