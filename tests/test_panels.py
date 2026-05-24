@@ -91,3 +91,27 @@ def test_split_panel_builds_options_for_each_mode() -> None:
         assert opts.every_n == 3
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_rotate_panel_builds_options() -> None:
+    import queue
+    import tkinter as tk
+    from anm.gui.panels.rotate import RotatePanel
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        panel = RotatePanel(
+            root,
+            status_var=tk.StringVar(),
+            progress_var=tk.DoubleVar(),
+            event_queue=queue.Queue(),
+        )
+        panel._page_spec_var.set("1-3")
+        panel._angle_var.set(180)
+        opts = panel._build_options()
+        assert opts.page_spec == "1-3"
+        assert opts.angle == 180
+    finally:
+        root.destroy()
