@@ -197,3 +197,42 @@ def test_hub_can_navigate_to_each_phase1_tool() -> None:
             assert type(app._active_panel).__name__.endswith("Panel")
     finally:
         app.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_split_panel_runs_each_page_end_to_end(tmp_path: Path) -> None:
+    import queue
+    import threading
+    import time
+    import tkinter as tk
+    from anm.gui.panels.split import SplitPanel
+
+    pdf = _make_pdf(tmp_path / "src.pdf", num_pages=3)
+    out_dir = tmp_path / "out"
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        panel = SplitPanel(
+            root,
+            status_var=tk.StringVar(),
+            progress_var=tk.DoubleVar(),
+            event_queue=queue.Queue(),
+        )
+        panel._load_pdf(pdf)
+        panel.output_dir_var.set(str(out_dir))
+        panel._on_run_clicked()
+        # Wait for the worker thread to finish.
+        for _ in range(50):
+            if not panel._running and not panel.event_queue.empty():
+                break
+            time.sleep(0.05)
+            # Pump the queue ourselves (no mainloop running).
+            try:
+                evt_type, payload = panel.event_queue.get_nowait()
+                panel._handle_event(evt_type, payload)
+            except queue.Empty:
+                pass
+        assert len(list(out_dir.glob("*.pdf"))) == 3
+    finally:
+        root.destroy()
