@@ -181,3 +181,19 @@ def test_extract_panel_builds_options() -> None:
         assert opts.page_spec == "1-3,5"
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_hub_can_navigate_to_each_phase1_tool() -> None:
+    import tkinter as tk
+    from anm.gui import PDFAnnotatorApp
+
+    app = PDFAnnotatorApp()
+    app.withdraw()
+    try:
+        for tool_id in ("split", "rotate", "reorder", "delete", "extract"):
+            app._on_home_tool_select(tool_id)
+            assert app._active_panel is not None
+            assert type(app._active_panel).__name__.endswith("Panel")
+    finally:
+        app.destroy()

@@ -190,14 +190,29 @@ class PDFToolkitApp(BaseTk):
 
     def _create_tool_panel(self, key: str) -> ttk.Frame:
         parent = self._tool_chrome.content_area
+        common = {
+            "status_var":   self.status_var,
+            "progress_var": self.progress_var,
+            "event_queue":  self.event_queue,
+        }
         if key == "annotate_merge":
             from .annotate_merge import AnnotateMergePanel
-            return AnnotateMergePanel(
-                parent,
-                status_var=self.status_var,
-                progress_var=self.progress_var,
-                event_queue=self.event_queue,
-            )
+            return AnnotateMergePanel(parent, **common)
+        if key == "split":
+            from .panels.split import SplitPanel
+            return SplitPanel(parent, **common)
+        if key == "rotate":
+            from .panels.rotate import RotatePanel
+            return RotatePanel(parent, **common)
+        if key == "reorder":
+            from .panels.reorder import ReorderPanel
+            return ReorderPanel(parent, **common)
+        if key == "delete_pages":
+            from .panels.delete_pages import DeletePagesPanel
+            return DeletePagesPanel(parent, **common)
+        if key == "extract":
+            from .panels.extract import ExtractPanel
+            return ExtractPanel(parent, **common)
         raise ValueError(f"Unknown panel key: {key!r}")
 
     def _get_placeholder_panel(self, tool_id: str) -> ttk.Frame:
