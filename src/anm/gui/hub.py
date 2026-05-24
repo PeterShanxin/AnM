@@ -129,6 +129,22 @@ class PDFToolkitApp(BaseTk):
         self._active_panel = panel
 
     # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
+    def destroy(self) -> None:
+        """Destroy the hub, cleaning up panels before tearing down the Tk interpreter.
+
+        StringVars and other Tk variables held by panels must be released while the
+        Tcl interpreter is still alive.  Without this, garbage-collecting the panel
+        after interpreter teardown corrupts Tcl state and prevents a second Tk
+        instance from being created (breaks test isolation).
+        """
+        self._active_panel = None
+        self._panels.clear()
+        super().destroy()
+
+    # ------------------------------------------------------------------
     # Event drain loop
     # ------------------------------------------------------------------
 
