@@ -137,3 +137,25 @@ def test_reorder_panel_parses_order() -> None:
         assert opts.order == [3, 1, 2]
     finally:
         root.destroy()
+
+
+@pytest.mark.skipif(_HEADLESS, reason="Tk requires a display")
+def test_delete_pages_panel_builds_options() -> None:
+    import queue
+    import tkinter as tk
+    from anm.gui.panels.delete_pages import DeletePagesPanel
+
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        panel = DeletePagesPanel(
+            root,
+            status_var=tk.StringVar(),
+            progress_var=tk.DoubleVar(),
+            event_queue=queue.Queue(),
+        )
+        panel._page_spec_var.set("2, 4-6")
+        opts = panel._build_options()
+        assert opts.page_spec == "2, 4-6"
+    finally:
+        root.destroy()
