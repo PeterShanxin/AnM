@@ -20,7 +20,6 @@ import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from typing import Callable
 
 from ..catalog import get_tool
 from ..styles import (
@@ -28,7 +27,6 @@ from ..styles import (
     ACCENT_SOFT,
     BG,
     BORDER,
-    BORDER_STRONG,
     CAT_ACCENTS,
     SURFACE,
     TEXT,
@@ -201,7 +199,13 @@ class BaseToolPanel(ttk.Frame):
         return "Run"
 
     def _build_inspector(self, parent: tk.Frame) -> None:
-        """Subclass adds tool-specific widgets to *parent* (the inspector area)."""
+        """Override to add tool-specific widgets to *parent* (the inspector area).
+
+        Subclasses call this explicitly after ``super().__init__()``::
+
+            super().__init__(parent, tool_id="split", ...)
+            self._build_inspector(self.inspector_area)
+        """
 
     def _execute(self, source: Path, output_dir: Path) -> str:
         """Subclass runs the tool and returns a one-line success summary."""
