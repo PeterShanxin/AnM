@@ -52,12 +52,14 @@ class BaseToolPanel(ttk.Frame):
         status_var: tk.StringVar,
         progress_var: tk.DoubleVar,
         event_queue: queue.Queue[tuple[str, object]],
+        run_lock: threading.Lock | None = None,
     ) -> None:
         super().__init__(parent)
         self.tool_id = tool_id
         self.status_var = status_var
         self.progress_var = progress_var
         self.event_queue = event_queue
+        self._run_lock = run_lock  # hub-level lock preventing concurrent cross-panel runs
 
         self._source_path: Path | None = None
         self.custom_output_dir: Path | None = None
@@ -275,10 +277,20 @@ class BaseToolPanel(ttk.Frame):
         if self._source_path is None:
             messagebox.showinfo("No file", "Open a PDF first.")
             return
+
+        # Prevent concurrent runs across panels (shared hub-level lock).
+        if self._run_lock is not None and not self._run_lock.acquire(blocking=False):
+            messagebox.showinfo(
+                "Tool busy", "Another tool is already running. Please wait."
+            )
+            return
+
         try:
             out_dir = Path(self.output_dir_var.get()).expanduser()
             out_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
+            if self._run_lock is not None:
+                self._run_lock.release()
             messagebox.showerror("Output directory", f"Cannot create folder: {exc}")
             return
 
@@ -288,6 +300,8 @@ class BaseToolPanel(ttk.Frame):
         try:
             options = self._build_options()
         except Exception as exc:  # noqa: BLE001
+            if self._run_lock is not None:
+                self._run_lock.release()
             messagebox.showerror("Invalid options", str(exc))
             return
 
@@ -298,6 +312,7 @@ class BaseToolPanel(ttk.Frame):
         source = self._source_path
 
         panel = self  # capture panel ref so hub routes event back here
+        run_lock = self._run_lock
 
         def _worker() -> None:
             try:
@@ -305,6 +320,9 @@ class BaseToolPanel(ttk.Frame):
                 self.event_queue.put(("done", summary, panel))
             except Exception as exc:  # noqa: BLE001 - surface to user
                 self.event_queue.put(("error", str(exc), panel))
+            finally:
+                if run_lock is not None:
+                    run_lock.release()
 
         self._worker = threading.Thread(target=_worker, daemon=True)
         self._worker.start()

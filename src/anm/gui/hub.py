@@ -21,6 +21,7 @@ works from the very first line after ``PDFToolkitApp()``.
 from __future__ import annotations
 
 import queue
+import threading
 import tkinter as tk
 from tkinter import ttk
 
@@ -60,6 +61,8 @@ class PDFToolkitApp(BaseTk):
         self.status_var = tk.StringVar(value="Select a tool from the menu.")
         self.progress_var = tk.DoubleVar(value=0.0)
         self.event_queue: queue.Queue[tuple[str, object]] = queue.Queue()
+        # Shared lock prevents two Phase 1 tool panels from running concurrently.
+        self.run_lock = threading.Lock()
 
         # Panel cache: panel_key → ttk.Frame
         self._panels: dict[str, ttk.Frame] = {}
@@ -198,21 +201,23 @@ class PDFToolkitApp(BaseTk):
         if key == "annotate_merge":
             from .annotate_merge import AnnotateMergePanel
             return AnnotateMergePanel(parent, **common)
+        # Phase 1 panels share run_lock to prevent concurrent PyMuPDF operations.
+        phase1 = {**common, "run_lock": self.run_lock}
         if key == "split":
             from .panels.split import SplitPanel
-            return SplitPanel(parent, **common)
+            return SplitPanel(parent, **phase1)
         if key == "rotate":
             from .panels.rotate import RotatePanel
-            return RotatePanel(parent, **common)
+            return RotatePanel(parent, **phase1)
         if key == "reorder":
             from .panels.reorder import ReorderPanel
-            return ReorderPanel(parent, **common)
+            return ReorderPanel(parent, **phase1)
         if key == "delete_pages":
             from .panels.delete_pages import DeletePagesPanel
-            return DeletePagesPanel(parent, **common)
+            return DeletePagesPanel(parent, **phase1)
         if key == "extract":
             from .panels.extract import ExtractPanel
-            return ExtractPanel(parent, **common)
+            return ExtractPanel(parent, **phase1)
         raise ValueError(f"Unknown panel key: {key!r}")
 
     def _get_placeholder_panel(self, tool_id: str) -> ttk.Frame:

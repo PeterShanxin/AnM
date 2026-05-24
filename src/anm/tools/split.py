@@ -72,16 +72,17 @@ def _compute_chunks(options: SplitOptions, total: int) -> list[list[int]]:
         return [list(range(i, min(i + n, total))) for i in range(0, total, n)]
 
     if options.mode == SplitMode.RANGES:
-        indices = parse_page_range(options.page_spec, total_pages=total)
+        # Parse each comma-separated segment individually so that boundaries
+        # between user-specified segments are always honoured.  Merging via a
+        # flat sorted list (the old approach) collapsed contiguous segments
+        # like "1-2,3-4" into a single chunk.
         chunks: list[list[int]] = []
-        current: list[int] = []
-        for i, idx in enumerate(indices):
-            if current and idx != indices[i - 1] + 1:
-                chunks.append(current)
-                current = []
-            current.append(idx)
-        if current:
-            chunks.append(current)
+        for seg in options.page_spec.split(","):
+            seg = seg.strip()
+            if seg:
+                indices = parse_page_range(seg, total_pages=total)
+                if indices:
+                    chunks.append(indices)
         return chunks
 
     raise ValueError(f"Unknown split mode: {options.mode}")
