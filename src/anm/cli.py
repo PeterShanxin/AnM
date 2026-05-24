@@ -496,7 +496,7 @@ def handle_split(
 
     if args.pages:
         options = SplitOptions(mode=SplitMode.RANGES, page_spec=args.pages)
-    elif args.every:
+    elif args.every is not None:
         options = SplitOptions(mode=SplitMode.EVERY_N, every_n=args.every)
     else:
         options = SplitOptions(mode=SplitMode.EACH_PAGE)
