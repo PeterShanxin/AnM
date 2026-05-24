@@ -146,7 +146,9 @@ class _TopBar(tk.Frame):
         logo_frame = tk.Frame(self, bg="#d24726", width=22, height=22)
         logo_frame.pack(side="left", padx=(20, 8), pady=0, anchor="center")
         logo_frame.pack_propagate(False)
-        tk.Label(logo_frame, text="A", bg="#d24726", fg="white", font=body(9, "bold")).place(relx=0.5, rely=0.5, anchor="center")
+        tk.Label(
+            logo_frame, text="A", bg="#d24726", fg="white", font=body(9, "bold")
+        ).place(relx=0.5, rely=0.5, anchor="center")
 
         tk.Label(self, text="AnM", bg=SURFACE, fg=TEXT, font=heading(16)).pack(
             side="left", padx=(0, 16), anchor="center"

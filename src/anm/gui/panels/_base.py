@@ -168,7 +168,9 @@ class BaseToolPanel(ttk.Frame):
         tk.Entry(row, textvariable=self.output_dir_var, font=body(11)).pack(
             side="left", fill="x", expand=True
         )
-        ttk.Button(row, text="…", width=3, command=self._choose_output_dir).pack(side="left", padx=(4, 0))
+        ttk.Button(row, text="…", width=3, command=self._choose_output_dir).pack(
+            side="left", padx=(4, 0)
+        )
 
         # Status line
         tk.Label(

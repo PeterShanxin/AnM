@@ -7,9 +7,9 @@ import queue
 import tkinter as tk
 from pathlib import Path
 
-from ..styles import SURFACE, TEXT_MUTED, body, label_font
 from ...tools.extract import ExtractOptions, extract_pages
 from ...tools.page_range import parse_page_range
+from ..styles import SURFACE, TEXT_MUTED, body, label_font
 from ._base import BaseToolPanel
 
 
@@ -56,7 +56,9 @@ class ExtractPanel(BaseToolPanel):
         if self.grid_widget.page_count == 0:
             return
         try:
-            indices = parse_page_range(self._page_spec_var.get(), total_pages=self.grid_widget.page_count)
+            indices = parse_page_range(
+                self._page_spec_var.get(), total_pages=self.grid_widget.page_count
+            )
         except ValueError:
             return
         self.grid_widget.mark(indices, style="select")

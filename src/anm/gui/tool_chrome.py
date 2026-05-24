@@ -22,20 +22,17 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Callable
 
-from .catalog import CATEGORIES, CategoryDef, ToolDef, get_category, tools_by_cat
+from .catalog import CATEGORIES, ToolDef, tools_by_cat
 from .styles import (
     ACCENT,
     ACCENT_SOFT,
     BG,
     BORDER,
-    BORDER_STRONG,
-    CAT_ACCENTS,
     SURFACE,
     SURFACE_2,
     SURFACE_3,
     TEXT,
     TEXT_MUTED,
-    TEXT_SUBTLE,
     body,
     heading,
     label_font,

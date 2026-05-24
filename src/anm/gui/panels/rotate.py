@@ -8,8 +8,8 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
 
-from ..styles import SURFACE, TEXT_MUTED, body, label_font
 from ...tools.rotate import RotateOptions, rotate_pdf
+from ..styles import SURFACE, TEXT_MUTED, body, label_font
 from ._base import BaseToolPanel
 
 

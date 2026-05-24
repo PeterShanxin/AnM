@@ -7,8 +7,8 @@ import queue
 import tkinter as tk
 from pathlib import Path
 
-from ..styles import SURFACE, TEXT_MUTED, body, label_font
 from ...tools.reorder import ReorderOptions, reorder_pdf
+from ..styles import SURFACE, TEXT_MUTED, body, label_font
 from ._base import BaseToolPanel
 
 

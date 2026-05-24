@@ -164,7 +164,7 @@ class PDFToolkitApp(BaseTk):
         else:
             panel = self._get_tool_panel(panel_key)
 
-        from .catalog import get_category, get_tool
+        from .catalog import get_tool
         tool_def = get_tool(tool_id)
         cat_id = tool_def.cat if tool_def else "organize"
 
