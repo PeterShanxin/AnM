@@ -200,8 +200,8 @@ class PDFToolkitApp(BaseTk):
         }
         if key == "annotate_merge":
             from .annotate_merge import AnnotateMergePanel
-            return AnnotateMergePanel(parent, **common)
-        # Phase 1 panels share run_lock to prevent concurrent PyMuPDF operations.
+            return AnnotateMergePanel(parent, **common, run_lock=self.run_lock)
+        # All panels share run_lock to prevent concurrent PyMuPDF operations.
         phase1 = {**common, "run_lock": self.run_lock}
         if key == "split":
             from .panels.split import SplitPanel

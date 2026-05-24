@@ -68,7 +68,11 @@ def _compute_chunks(options: SplitOptions, total: int) -> list[list[int]]:
         return [[i] for i in range(total)]
 
     if options.mode == SplitMode.EVERY_N:
-        n = max(1, options.every_n)
+        if options.every_n <= 0:
+            raise ValueError(
+                f"every_n must be a positive integer, got {options.every_n}"
+            )
+        n = options.every_n
         return [list(range(i, min(i + n, total))) for i in range(0, total, n)]
 
     if options.mode == SplitMode.RANGES:

@@ -30,11 +30,13 @@ class AnnotateMergePanel(ttk.Frame):
         status_var: tk.StringVar,
         progress_var: tk.DoubleVar,
         event_queue: queue.Queue[tuple[str, object]],
+        run_lock: threading.Lock | None = None,
     ) -> None:
         super().__init__(parent)
         self.status_var = status_var
         self.progress_var = progress_var
         self.event_queue = event_queue
+        self._run_lock = run_lock  # hub-level lock preventing concurrent cross-panel runs
 
         self.model = FileSelectionModel()
         self.cancel_event = threading.Event()
@@ -463,6 +465,11 @@ class AnnotateMergePanel(ttk.Frame):
             messagebox.showerror("No PDFs selected", "Add at least one PDF file before starting.")
             return
 
+        # Prevent concurrent runs across panels (shared hub-level lock).
+        if self._run_lock is not None and not self._run_lock.acquire(blocking=False):
+            messagebox.showinfo("Tool busy", "Another tool is already running. Please wait.")
+            return
+
         overwrite = False
         run_options = self.build_run_options(overwrite=False)
         output_path = resolve_output_path(included_paths, run_options)
@@ -472,6 +479,8 @@ class AnnotateMergePanel(ttk.Frame):
                 f"{output_path.name} already exists in:\n{output_path.parent}\n\nOverwrite it?",
             )
             if not overwrite:
+                if self._run_lock is not None:
+                    self._run_lock.release()
                 self.status_var.set("Merge cancelled before start. Output file already exists.")
                 return
             run_options = self.build_run_options(overwrite=True)
@@ -483,6 +492,7 @@ class AnnotateMergePanel(ttk.Frame):
         annotation_options = self.build_annotation_options()
 
         panel = self  # capture ref so hub routes events here even after navigation
+        run_lock = self._run_lock
 
         def worker() -> None:
             try:
@@ -498,6 +508,9 @@ class AnnotateMergePanel(ttk.Frame):
                 self.event_queue.put(("result", result, panel))
             except Exception as exc:
                 self.event_queue.put(("error", exc, panel))
+            finally:
+                if run_lock is not None:
+                    run_lock.release()
 
         self.worker_thread = threading.Thread(target=worker, daemon=True)
         self.worker_thread.start()
