@@ -1,3 +1,23 @@
+"""PDFToolkitApp — main application window.
+
+Navigation strategy
+-------------------
+* **Home** (Variant B): ``HubHomePanel`` — launcher grid of all tools by category.
+* **In-tool** (Variant A): ``ToolChromeFrame`` — persistent icon rail + grouped
+  sidebar wrapping the active tool panel.
+
+Backward-compatibility proxy
+-----------------------------
+Tests and CLI callers access attributes/methods on the app directly (e.g.
+``app.model``, ``app.add_paths()``, ``app.custom_output_dir``).  These live
+on the active tool panel, so ``__getattr__`` / ``__setattr__`` proxy them
+transparently.
+
+The ``AnnotateMergePanel`` is always instantiated eagerly (it is the default
+"active" panel even when the home screen is visible) so that proxy access
+works from the very first line after ``PDFToolkitApp()``.
+"""
+
 from __future__ import annotations
 
 import queue
@@ -16,6 +36,16 @@ BaseTk = TkinterDnD.Tk if TkinterDnD is not None else tk.Tk
 # through __setattr__ when set on the hub after initialisation.
 _PANEL_ATTRS = frozenset({"custom_output_dir"})
 
+# Maps catalog tool-id → internal panel key used by _create_tool_panel.
+_TOOL_PANEL_KEYS: dict[str, str] = {
+    "merge":   "annotate_merge",
+    "split":   "split",
+    "reorder": "reorder",
+    "delete":  "delete_pages",
+    "rotate":  "rotate",
+    "extract": "extract",
+}
+
 
 class PDFToolkitApp(BaseTk):
     """Main application window that hosts tool panels."""
@@ -31,13 +61,24 @@ class PDFToolkitApp(BaseTk):
         self.progress_var = tk.DoubleVar(value=0.0)
         self.event_queue: queue.Queue[tuple[str, object]] = queue.Queue()
 
+        # Panel cache: panel_key → ttk.Frame
         self._panels: dict[str, ttk.Frame] = {}
+        # The active *tool* panel (inside ToolChromeFrame); used by the proxy.
         self._active_panel: ttk.Frame | None = None
+        # Which top-level frame is currently visible in _panel_container.
+        self._visible_frame: ttk.Frame | None = None
         self._hub_ready = False
 
-        self._build_menu()
         self._build_layout()
-        self._show_panel("annotate_merge")
+        self._build_top_level_frames()
+
+        # Eagerly create AnnotateMergePanel so proxy works from __init__ onward.
+        _am = self._get_tool_panel("annotate_merge")
+        self._active_panel = _am
+
+        # Start on the home screen.
+        self._show_home()
+
         self.after(100, self._drain_events)
 
         # Register DnD on root window, delegate to active panel
@@ -54,7 +95,6 @@ class PDFToolkitApp(BaseTk):
     def _set_dpi_awareness(self) -> None:
         try:
             from ctypes import windll
-
             windll.shcore.SetProcessDpiAwareness(1)
         except Exception:
             return
@@ -66,20 +106,6 @@ class PDFToolkitApp(BaseTk):
     def _handle_drop(self, event: object) -> None:
         if self._active_panel is not None and hasattr(self._active_panel, "_handle_drop"):
             self._active_panel._handle_drop(event)
-
-    # ------------------------------------------------------------------
-    # Menu
-    # ------------------------------------------------------------------
-
-    def _build_menu(self) -> None:
-        menubar = tk.Menu(self)
-        tools_menu = tk.Menu(menubar, tearoff=0)
-        tools_menu.add_command(
-            label="Annotate && Merge",
-            command=lambda: self._show_panel("annotate_merge"),
-        )
-        menubar.add_cascade(label="Tools", menu=tools_menu)
-        self.config(menu=menubar)
 
     # ------------------------------------------------------------------
     # Layout
@@ -100,33 +126,111 @@ class PDFToolkitApp(BaseTk):
         )
         status.grid(row=1, column=0, sticky="ew")
 
+    def _build_top_level_frames(self) -> None:
+        from .hub_home import HubHomePanel
+        from .tool_chrome import ToolChromeFrame
+
+        self._hub_home = HubHomePanel(
+            self._panel_container,
+            on_tool_select=self._on_home_tool_select,
+        )
+
+        self._tool_chrome = ToolChromeFrame(
+            self._panel_container,
+            on_home=self._show_home,
+            on_tool_navigate=self._on_home_tool_select,
+        )
+
+    # ------------------------------------------------------------------
+    # Navigation
+    # ------------------------------------------------------------------
+
+    def _show_home(self) -> None:
+        """Display the hub home (Variant B launcher)."""
+        if self._visible_frame is not None:
+            self._visible_frame.grid_forget()
+        self._hub_home.grid(row=0, column=0, sticky="nsew")
+        self._visible_frame = self._hub_home
+        self.title("AnM — PDF Toolkit")
+        # Keep _active_panel pointing to last tool for proxy compat.
+
+    def _on_home_tool_select(self, tool_id: str) -> None:
+        """Called when a tool card or sidebar item is clicked."""
+        panel_key = _TOOL_PANEL_KEYS.get(tool_id)
+        if panel_key is None:
+            # Tool not yet implemented — show placeholder
+            panel_key = "__placeholder__"
+            panel = self._get_placeholder_panel(tool_id)
+        else:
+            panel = self._get_tool_panel(panel_key)
+
+        from .catalog import get_category, get_tool
+        tool_def = get_tool(tool_id)
+        cat_id = tool_def.cat if tool_def else "organize"
+
+        if self._visible_frame is not None:
+            self._visible_frame.grid_forget()
+
+        self._tool_chrome.show_tool_panel(panel, tool_id=tool_id, cat_id=cat_id)
+        self._tool_chrome.grid(row=0, column=0, sticky="nsew")
+        self._visible_frame = self._tool_chrome
+        self._active_panel = panel
+
+        tool_label = tool_def.label if tool_def else tool_id
+        self.title(f"AnM — {tool_label}")
+
     # ------------------------------------------------------------------
     # Panel management
     # ------------------------------------------------------------------
 
-    def _get_panel(self, name: str) -> ttk.Frame:
-        if name not in self._panels:
-            self._panels[name] = self._create_panel(name)
-        return self._panels[name]
+    def _get_tool_panel(self, key: str) -> ttk.Frame:
+        if key not in self._panels:
+            self._panels[key] = self._create_tool_panel(key)
+        return self._panels[key]
 
-    def _create_panel(self, name: str) -> ttk.Frame:
-        if name == "annotate_merge":
+    def _create_tool_panel(self, key: str) -> ttk.Frame:
+        parent = self._tool_chrome.content_area
+        if key == "annotate_merge":
             from .annotate_merge import AnnotateMergePanel
-
             return AnnotateMergePanel(
-                self._panel_container,
+                parent,
                 status_var=self.status_var,
                 progress_var=self.progress_var,
                 event_queue=self.event_queue,
             )
-        raise ValueError(f"Unknown panel: {name}")
+        raise ValueError(f"Unknown panel key: {key!r}")
 
-    def _show_panel(self, name: str) -> None:
-        panel = self._get_panel(name)
-        if self._active_panel is not None:
-            self._active_panel.grid_forget()
-        panel.grid(row=0, column=0, sticky="nsew")
-        self._active_panel = panel
+    def _get_placeholder_panel(self, tool_id: str) -> ttk.Frame:
+        """Lazy placeholder for tools not yet implemented."""
+        key = f"__ph_{tool_id}__"
+        if key not in self._panels:
+            self._panels[key] = self._make_placeholder(tool_id)
+        return self._panels[key]
+
+    def _make_placeholder(self, tool_id: str) -> ttk.Frame:
+        from .catalog import get_tool
+        from .styles import BG, TEXT, TEXT_MUTED, body, heading
+
+        tool = get_tool(tool_id)
+        label = tool.label if tool else tool_id.replace("_", " ").title()
+        desc = tool.desc if tool else "This tool is coming soon."
+
+        frame = ttk.Frame(self._tool_chrome.content_area)
+        inner = tk.Frame(frame, bg=BG)
+        inner.pack(fill="both", expand=True)
+
+        tk.Label(inner, text=label, bg=BG, fg=TEXT, font=heading(20)).pack(
+            anchor="center", pady=(120, 8)
+        )
+        tk.Label(inner, text=desc, bg=BG, fg=TEXT_MUTED, font=body(13)).pack(anchor="center")
+        tk.Label(
+            inner,
+            text="Coming soon",
+            bg=BG,
+            fg="#8a8a8a",
+            font=body(11),
+        ).pack(anchor="center", pady=(4, 0))
+        return frame
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -140,8 +244,16 @@ class PDFToolkitApp(BaseTk):
         after interpreter teardown corrupts Tcl state and prevents a second Tk
         instance from being created (breaks test isolation).
         """
+        import gc
+
         self._active_panel = None
         self._panels.clear()
+        # Drop references to top-level frames so their StringVars can be
+        # collected (and their __del__ can unset the Tcl vars) before the
+        # interpreter is torn down in super().destroy().
+        self._hub_home = None  # type: ignore[assignment]
+        self._tool_chrome = None  # type: ignore[assignment]
+        gc.collect()  # run reference-cycle collector to trigger __del__ while interp alive
         super().destroy()
 
     # ------------------------------------------------------------------
