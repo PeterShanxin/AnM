@@ -94,6 +94,8 @@ class PageThumbGrid(tk.Frame):
 
         with fitz.open(path) as doc:
             self.page_count = doc.page_count
+            if self.page_count == 0:
+                raise ValueError(f"{path.name} contains no pages.")
             for i, page in enumerate(doc):
                 photo = self._render(page)
                 self._photos.append(photo)
@@ -116,7 +118,7 @@ class PageThumbGrid(tk.Frame):
     # ------------------------------------------------------------------
 
     def _render(self, page: fitz.Page) -> tk.PhotoImage:
-        scale = self._thumb_w / page.rect.width
+        scale = self._thumb_w / max(page.rect.width, 1)
         mat = fitz.Matrix(scale, scale)
         pix = page.get_pixmap(matrix=mat)
         # Tk PhotoImage accepts base64-encoded GIF or PNG.
