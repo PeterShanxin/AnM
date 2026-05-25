@@ -87,6 +87,8 @@ def _compute_chunks(options: SplitOptions, total: int) -> list[list[int]]:
                 indices = parse_page_range(seg, total_pages=total)
                 if indices:
                     chunks.append(indices)
+        if not chunks:
+            raise ValueError("page_spec produced no page selections")
         return chunks
 
     raise ValueError(f"Unknown split mode: {options.mode}")
@@ -96,6 +98,7 @@ def _chunk_filename(stem: str, indices: list[int], chunk_index: int, mode: Split
     if mode == SplitMode.EACH_PAGE:
         return f"{stem}_page_{indices[0] + 1}.pdf"
     # Include chunk_index so duplicate/overlapping segments get unique names.
+    # chunk_index is already 1-based (caller uses enumerate(..., start=1)).
     if len(indices) == 1:
-        return f"{stem}_chunk_{chunk_index + 1}_page_{indices[0] + 1}.pdf"
-    return f"{stem}_chunk_{chunk_index + 1}_pages_{indices[0] + 1}-{indices[-1] + 1}.pdf"
+        return f"{stem}_chunk_{chunk_index}_page_{indices[0] + 1}.pdf"
+    return f"{stem}_chunk_{chunk_index}_pages_{indices[0] + 1}-{indices[-1] + 1}.pdf"
