@@ -60,6 +60,10 @@ class PDFToolkitApp(BaseTk):
         self.title("AnM — PDF Toolkit")
         self._apply_default_geometry()
 
+        # Apply design-system ttk styling (anm-btn, anm-btn-primary).
+        from .styles import configure_ttk
+        configure_ttk(self)
+
         self.status_var = tk.StringVar(value="Select a tool from the menu.")
         self.progress_var = tk.DoubleVar(value=0.0)
         self.event_queue: queue.Queue[tuple[str, object]] = queue.Queue()

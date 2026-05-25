@@ -38,7 +38,7 @@ from ..styles import (
 from ._page_grid import PageThumbGrid
 
 _INSPECTOR_W = 280
-_HEADER_H = 64
+_HEADER_H = 56
 
 
 class BaseToolPanel(ttk.Frame):
@@ -87,21 +87,21 @@ class BaseToolPanel(ttk.Frame):
         hdr.grid_propagate(False)
         hdr.columnconfigure(2, weight=1)
 
-        # Icon pill
-        pill = tk.Frame(hdr, bg=ACCENT_SOFT, width=36, height=36)
-        pill.grid(row=0, column=0, padx=(20, 12), pady=14)
+        # Icon pill — 32×32 in accent-soft, matches variant-a tool header
+        pill = tk.Frame(hdr, bg=ACCENT_SOFT, width=32, height=32)
+        pill.grid(row=0, column=0, padx=(24, 12), pady=12)
         pill.grid_propagate(False)
         tk.Label(
             pill,
             text=tool.icon if tool else "?",
             bg=ACCENT_SOFT,
             fg=cat_accent,
-            font=body(16, "bold"),
+            font=body(15, "bold"),
         ).place(relx=0.5, rely=0.5, anchor="center")
 
-        # Title + description
+        # Title + description — 15/600 + 12 muted
         title_box = tk.Frame(hdr, bg=SURFACE)
-        title_box.grid(row=0, column=1, sticky="w", pady=14)
+        title_box.grid(row=0, column=1, sticky="w", pady=8)
         tk.Label(
             title_box,
             text=tool.label if tool else self.tool_id,
@@ -115,17 +115,19 @@ class BaseToolPanel(ttk.Frame):
             text=tool.desc if tool else "",
             bg=SURFACE,
             fg=TEXT_MUTED,
-            font=label_font(11),
+            font=label_font(12),
             anchor="w",
         ).pack(anchor="w")
 
-        # Buttons
+        # Buttons — right-aligned, 24-px outer padding
         btn_box = tk.Frame(hdr, bg=SURFACE)
-        btn_box.grid(row=0, column=3, sticky="e", padx=(0, 20), pady=14)
+        btn_box.grid(row=0, column=3, sticky="e", padx=(0, 24), pady=12)
         ttk.Button(btn_box, text="Open file", command=self._open_file).pack(
             side="left", padx=(0, 8)
         )
-        self._run_btn = ttk.Button(btn_box, text=self._run_label(), command=self._on_run_clicked)
+        self._run_btn = ttk.Button(btn_box, text=self._run_label(),
+                                   style="Accent.TButton",
+                                   command=self._on_run_clicked)
         self._run_btn.pack(side="left")
 
         # Bottom border
