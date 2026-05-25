@@ -181,3 +181,115 @@ def test_merge_json_failure_is_stable_without_overwrite(tmp_path: Path) -> None:
     assert payload["ok"] is False
     assert payload["type"] == "FileExistsError"
     assert "already exists" in payload["error"]
+
+
+def test_split_each_page(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    doc = fitz.open()
+    page1 = doc.new_page()
+    page1.insert_text((72, 72), "hello")
+    doc.new_page()
+    doc.save(source)
+    doc.close()
+    out_dir = tmp_path / "split_out"
+
+    code, stdout, stderr = run_cli(["split", str(source), "--output", str(out_dir)])
+
+    assert code == 0
+    assert out_dir.is_dir()
+
+
+def test_split_by_range_json(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    doc = fitz.open()
+    for _ in range(5):
+        doc.new_page()
+    doc.save(source)
+    doc.close()
+    out_dir = tmp_path / "split_out"
+
+    code, stdout, stderr = run_cli(
+        ["split", str(source), "--pages", "1-2,4", "--output", str(out_dir), "--json"]
+    )
+
+    assert code == 0
+    payload = json.loads(stdout)
+    assert payload["ok"] is True
+    assert len(payload["outputs"]) == 2
+
+
+def test_rotate_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    output = tmp_path / "rotated.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["rotate", str(source), "--angle", "90", "--output", str(output)]
+    )
+
+    assert code == 0
+    doc = fitz.open(output)
+    assert doc[0].rotation == 90
+    doc.close()
+
+
+def test_reorder_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    doc = fitz.open()
+    for text in ["A", "B", "C"]:
+        page = doc.new_page()
+        page.insert_text((72, 72), text)
+    doc.save(source)
+    doc.close()
+    output = tmp_path / "reordered.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["reorder", str(source), "--order", "3,2,1", "--output", str(output)]
+    )
+
+    assert code == 0
+    doc = fitz.open(output)
+    assert "C" in doc[0].get_text()
+    doc.close()
+
+
+def test_delete_pages_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    doc = fitz.open()
+    for text in ["A", "B", "C"]:
+        page = doc.new_page()
+        page.insert_text((72, 72), text)
+    doc.save(source)
+    doc.close()
+    output = tmp_path / "trimmed.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["delete-pages", str(source), "--pages", "2", "--output", str(output)]
+    )
+
+    assert code == 0
+    doc = fitz.open(output)
+    assert doc.page_count == 2
+    doc.close()
+
+
+def test_extract_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    doc = fitz.open()
+    for text in ["A", "B", "C"]:
+        page = doc.new_page()
+        page.insert_text((72, 72), text)
+    doc.save(source)
+    doc.close()
+    output = tmp_path / "extracted.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["extract", str(source), "--pages", "1,3", "--output", str(output)]
+    )
+
+    assert code == 0
+    doc = fitz.open(output)
+    assert doc.page_count == 2
+    assert "A" in doc[0].get_text()
+    assert "C" in doc[1].get_text()
+    doc.close()
