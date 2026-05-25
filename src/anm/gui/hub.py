@@ -54,8 +54,8 @@ class PDFToolkitApp(BaseTk):
     def __init__(self) -> None:
         super().__init__()
         self.title("AnM — PDF Toolkit")
-        self.geometry("1180x760")
-        self.minsize(980, 640)
+        self.geometry("1360x860")
+        self.minsize(1024, 680)
         self._set_dpi_awareness()
 
         self.status_var = tk.StringVar(value="Select a tool from the menu.")

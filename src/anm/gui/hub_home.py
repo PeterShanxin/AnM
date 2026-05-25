@@ -33,6 +33,16 @@ from .styles import (
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _bind_scroll_recursive(widget: tk.Widget, canvas: tk.Canvas) -> None:
+    """Bind <MouseWheel> on *widget* and every descendant to scroll *canvas*."""
+    def _scroll(event: tk.Event) -> None:  # type: ignore[type-arg]
+        canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
+    widget.bind("<MouseWheel>", _scroll, add="+")
+    for child in widget.winfo_children():
+        _bind_scroll_recursive(child, canvas)
+
+
 def _add_hover(widget: tk.Widget, enter_bg: str, leave_bg: str) -> None:
     """Recursively bind enter/leave to recolour *widget* and all descendants."""
     def _set(w: tk.Widget, colour: str) -> None:
@@ -76,15 +86,15 @@ class _ToolCard(tk.Frame):
 
         # Icon pill ─────────────────────────────────────────────────────────
         icon_bg = _blend_hex(cat_accent, SURFACE, 0.13)
-        icon_frame = tk.Frame(self, bg=icon_bg, width=32, height=32)
-        icon_frame.grid(row=0, column=0, sticky="nw", padx=12, pady=(12, 0))
+        icon_frame = tk.Frame(self, bg=icon_bg, width=40, height=40)
+        icon_frame.grid(row=0, column=0, sticky="nw", padx=16, pady=(16, 0))
         icon_frame.grid_propagate(False)
         tk.Label(
             icon_frame,
             text=tool.icon,
             bg=icon_bg,
             fg=cat_accent,
-            font=body(13, "bold"),
+            font=body(15, "bold"),
         ).place(relx=0.5, rely=0.5, anchor="center")
 
         # Tool name ─────────────────────────────────────────────────────────
@@ -93,9 +103,9 @@ class _ToolCard(tk.Frame):
             text=tool.label,
             bg=SURFACE,
             fg=TEXT,
-            font=body(12, "bold"),
+            font=body(13, "bold"),
             anchor="w",
-        ).grid(row=1, column=0, sticky="ew", padx=12, pady=(6, 0))
+        ).grid(row=1, column=0, sticky="ew", padx=16, pady=(8, 0))
 
         # Description ───────────────────────────────────────────────────────
         tk.Label(
@@ -103,11 +113,11 @@ class _ToolCard(tk.Frame):
             text=tool.desc,
             bg=SURFACE,
             fg=TEXT_MUTED,
-            font=label_font(11),
+            font=label_font(12),
             anchor="nw",
             justify="left",
-            wraplength=150,
-        ).grid(row=2, column=0, sticky="ew", padx=12, pady=(2, 12))
+            wraplength=180,
+        ).grid(row=2, column=0, sticky="ew", padx=16, pady=(3, 16))
 
         self.columnconfigure(0, weight=1)
 
@@ -143,15 +153,8 @@ class _TopBar(tk.Frame):
         self.grid_propagate(False)
 
         # Logo ──────────────────────────────────────────────────────────────
-        logo_frame = tk.Frame(self, bg="#d24726", width=22, height=22)
-        logo_frame.pack(side="left", padx=(20, 8), pady=0, anchor="center")
-        logo_frame.pack_propagate(False)
-        tk.Label(
-            logo_frame, text="A", bg="#d24726", fg="white", font=body(9, "bold")
-        ).place(relx=0.5, rely=0.5, anchor="center")
-
         tk.Label(self, text="AnM", bg=SURFACE, fg=TEXT, font=heading(16)).pack(
-            side="left", padx=(0, 16), anchor="center"
+            side="left", padx=(20, 16), anchor="center"
         )
 
         # Search bar ────────────────────────────────────────────────────────
@@ -251,6 +254,9 @@ class HubHomePanel(ttk.Frame):
 
         # Bottom spacer
         tk.Frame(inner, bg=BG, height=24).grid(row=row, column=0)
+
+        # Bind mousewheel on all inner children so hovering cards still scrolls.
+        _bind_scroll_recursive(inner, canvas)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
