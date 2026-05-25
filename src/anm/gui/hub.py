@@ -54,9 +54,8 @@ class PDFToolkitApp(BaseTk):
     def __init__(self) -> None:
         super().__init__()
         self.title("AnM — PDF Toolkit")
-        self.geometry("1360x860")
-        self.minsize(1024, 680)
         self._set_dpi_awareness()
+        self._apply_default_geometry()
 
         self.status_var = tk.StringVar(value="Select a tool from the menu.")
         self.progress_var = tk.DoubleVar(value=0.0)
@@ -101,6 +100,35 @@ class PDFToolkitApp(BaseTk):
             windll.shcore.SetProcessDpiAwareness(1)
         except Exception:
             return
+
+    def _apply_default_geometry(self) -> None:
+        """Size and centre the window as a fraction of the screen.
+
+        Breakpoints (screen width):
+          < 1366  → 92 % of screen  (compact laptop)
+          < 1920  → 88 % of screen  (typical 1080p / 1440p)
+          ≥ 1920  → 82 % of screen, capped at 1800×1080 (large / 4K)
+        """
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+
+        if sw < 1366:
+            frac = 0.92
+        elif sw < 1920:
+            frac = 0.88
+        else:
+            frac = 0.82
+
+        w = max(1024, min(int(sw * frac), 1800))
+        h = max(680,  min(int(sh * frac), 1080))
+
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+        min_w = max(900, min(int(sw * 0.55), 1200))
+        min_h = max(600, min(int(sh * 0.55), 800))
+        self.minsize(min_w, min_h)
 
     # ------------------------------------------------------------------
     # DnD delegation
