@@ -95,6 +95,7 @@ def _compute_chunks(options: SplitOptions, total: int) -> list[list[int]]:
 def _chunk_filename(stem: str, indices: list[int], chunk_index: int, mode: SplitMode) -> str:
     if mode == SplitMode.EACH_PAGE:
         return f"{stem}_page_{indices[0] + 1}.pdf"
+    # Include chunk_index so duplicate/overlapping segments get unique names.
     if len(indices) == 1:
-        return f"{stem}_page_{indices[0] + 1}.pdf"
-    return f"{stem}_pages_{indices[0] + 1}-{indices[-1] + 1}.pdf"
+        return f"{stem}_chunk_{chunk_index + 1}_page_{indices[0] + 1}.pdf"
+    return f"{stem}_chunk_{chunk_index + 1}_pages_{indices[0] + 1}-{indices[-1] + 1}.pdf"

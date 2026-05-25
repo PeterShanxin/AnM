@@ -175,8 +175,9 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
         ),
     )
     split.add_argument("pdf", type=Path, help="PDF to split")
-    split.add_argument("--pages", default=None, help="page ranges (e.g. 1-3,5)")
-    split.add_argument("--every", type=int, default=None, help="split every N pages")
+    _split_mode = split.add_mutually_exclusive_group()
+    _split_mode.add_argument("--pages", default=None, help="page ranges (e.g. 1-3,5)")
+    _split_mode.add_argument("--every", type=int, default=None, help="split every N pages")
     split.add_argument("--output", "-o", required=True, type=Path, help="output directory")
     split.add_argument("--json", action="store_true", help="print machine-readable JSON")
     split.set_defaults(handler=handle_split)
