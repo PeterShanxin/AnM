@@ -878,12 +878,18 @@ function toggleTheme() {
 // Helpers
 // --------------------------------------------------------------------- //
 
+// Escape every char that can break out of HTML text or attribute context.
+// `&` MUST be first so we don't double-escape entities we add below.  Single
+// quote covered too because we sometimes interpolate into single-quoted
+// attributes via template literals.
+const _HTML_ESCAPE = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  return String(s ?? '').replace(/[&<>"']/g, c => _HTML_ESCAPE[c]);
 }
-function escapeAttr(s) {
-  return String(s ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-}
+// `escapeAttr` must defeat the browser's entity decoder inside attribute
+// values — a value like `&quot;` could otherwise become a literal `"` and
+// terminate the attribute.  We use the same robust replacer as escapeHtml.
+const escapeAttr = escapeHtml;
 function formatBytes(n) {
   if (n == null) return '';
   if (n < 1024) return `${n} B`;

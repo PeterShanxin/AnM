@@ -442,7 +442,7 @@ SVG icons, dark theme).
 - Legacy ``src/anm/gui/`` kept reachable via ``anm --tk`` for fallback / debugging
 - ``main.py`` defaults to the web GUI; ``--tk`` flag opts back to the tk hub
 - ``src/anm/__main__.py`` added so ``python -m anm`` works
-- ``pyproject.toml`` gained ``pywebview>=5,<6`` (installed 6.2.1) and
+- ``pyproject.toml`` gained ``pywebview>=5,<7`` (tested with 6.2.1) and
   ``[tool.setuptools.package-data]`` for shipping the SPA assets
 - All ``tools/*`` modules unchanged — the pure-function contract held up
 - All 76 tests still pass (tk tests run against the legacy ``PDFAnnotatorApp``)

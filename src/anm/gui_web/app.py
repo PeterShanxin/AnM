@@ -1,7 +1,11 @@
 """pywebview entrypoint + JS-callable Api bridge.
 
-The bridge runs PDF operations on a worker thread so the UI stays
-responsive.  Each method returns a JSON-serialisable dict:
+Each ``Api`` method runs synchronously in the pywebview JS-bridge thread
+(pywebview already invokes JS-API callbacks off the UI thread, so the
+WebView2 renderer stays responsive while a tool runs).  Long-running
+PyMuPDF calls therefore do not block the SPA's animation frame.
+
+Every method returns a JSON-serialisable envelope:
 
     {"ok": True,  "data": ...}
     {"ok": False, "error": "..."}
@@ -36,7 +40,8 @@ _ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 _INDEX_HTML = _ASSETS_DIR / "index.html"
 
 # Thumbnail rendering settings.
-_THUMB_WIDTH_PX = 160     # render width in CSS pixels
+# Bumped if thumbs look fuzzy on high-DPI; lowered if scroll grinds on
+# huge PDFs.  Kept as a module constant so the JS side can stay agnostic.
 _THUMB_ZOOM = 1.5         # PyMuPDF zoom multiplier — higher = sharper, slower
 
 
@@ -84,7 +89,16 @@ class Api:
         return self.load_pdf(str(path))
 
     def open_pdfs_dialog(self) -> dict[str, Any]:
-        """Multi-file picker for tools that take several PDFs (Merge)."""
+        """Multi-file picker for tools that take several PDFs (Merge).
+
+        Always returns ``{ok: True, data: {files: [...], output_dir: str}}``
+        on success — including when the user cancels (``files`` is then an
+        empty list).  The fixed shape keeps JS callers free of cancel-vs-
+        empty-vs-success branching.
+        """
+        with self._lock:
+            current_out_dir = str(self._output_dir)
+
         window = webview.active_window()
         if window is None:
             return _err("No active window")
@@ -96,8 +110,11 @@ class Api:
             )
         except Exception as exc:  # noqa: BLE001
             return _err(f"Dialog failed: {exc}")
+
+        empty = {"files": [], "output_dir": current_out_dir}
         if not result:
-            return _ok([])
+            return _ok(empty)
+
         files: list[dict[str, Any]] = []
         for raw in result:
             path = Path(raw).expanduser().resolve()
@@ -119,9 +136,10 @@ class Api:
             with self._lock:
                 if self._output_dir == Path.cwd() / "output":
                     self._output_dir = Path(files[0]["path"]).parent
+                current_out_dir = str(self._output_dir)
         return _ok({
             "files": files,
-            "output_dir": str(self._output_dir),
+            "output_dir": current_out_dir,
         })
 
     def load_pdf(self, path_str: str) -> dict[str, Any]:

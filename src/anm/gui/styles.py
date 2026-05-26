@@ -46,10 +46,38 @@ def heading(size: int = 13) -> tuple[str, int, str]:
     return (_FF, size, "bold")
 
 
+def _safe_style_call(fn, *args, **kwargs) -> None:
+    """Best-effort ttk styling.
+
+    ``ttk.Style.configure`` and ``style.map`` accept theme-specific options
+    (``bordercolor``, ``lightcolor``, ``darkcolor``, ``focuscolor`` …) that
+    raise ``tkinter.TclError`` on builds without the ``clam`` theme.  We
+    swallow those so the legacy ``--tk`` GUI still launches with default
+    styling, even when the platform tk is limited.
+    """
+    import tkinter as tk
+
+    try:
+        fn(*args, **kwargs)
+    except tk.TclError:
+        # Retry with only universally supported keys to keep some styling.
+        safe = {
+            k: v
+            for k, v in kwargs.items()
+            if k in {"background", "foreground", "relief", "padding", "font"}
+        }
+        try:
+            fn(*args, **safe)
+        except tk.TclError:
+            pass
+
+
 def configure_ttk(root: object) -> None:
     """Apply project-wide ttk styling that mirrors `.anm-btn` from app.css.
 
-    Call once at app start, after the root window exists.
+    Call once at app start, after the root window exists.  Tolerates Tk
+    builds that don't ship the ``clam`` theme or that reject theme-specific
+    options — see ``_safe_style_call``.
     """
     from tkinter import ttk
 
@@ -60,7 +88,8 @@ def configure_ttk(root: object) -> None:
         pass
 
     # Plain button — neutral surface with a border-strong outline
-    style.configure(
+    _safe_style_call(
+        style.configure,
         "TButton",
         background=SURFACE,
         foreground=TEXT,
@@ -73,14 +102,16 @@ def configure_ttk(root: object) -> None:
         padding=(14, 4),
         font=(_FF, 11),
     )
-    style.map(
+    _safe_style_call(
+        style.map,
         "TButton",
         background=[("active", SURFACE_3), ("pressed", SURFACE_3)],
         bordercolor=[("active", BORDER_STRONG)],
     )
 
     # Primary action — accent fill, accent text colour
-    style.configure(
+    _safe_style_call(
+        style.configure,
         "Accent.TButton",
         background=ACCENT,
         foreground="#ffffff",
@@ -92,7 +123,8 @@ def configure_ttk(root: object) -> None:
         padding=(14, 4),
         font=(_FF, 11, "bold"),
     )
-    style.map(
+    _safe_style_call(
+        style.map,
         "Accent.TButton",
         background=[("active", "#0073d2"), ("pressed", "#005ba8")],
         foreground=[("active", "#ffffff")],
