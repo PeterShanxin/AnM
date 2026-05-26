@@ -52,11 +52,17 @@ class PDFToolkitApp(BaseTk):
     """Main application window that hosts tool panels."""
 
     def __init__(self) -> None:
+        # DPI awareness MUST be set before super().__init__() — Tk caches
+        # the screen dimensions at construction time, so calling it after
+        # leaves winfo_screen{width,height}() returning pre-scaling values.
+        self._set_dpi_awareness()
         super().__init__()
         self.title("AnM — PDF Toolkit")
-        self.geometry("1180x760")
-        self.minsize(980, 640)
-        self._set_dpi_awareness()
+        self._apply_default_geometry()
+
+        # Apply design-system ttk styling (anm-btn, anm-btn-primary).
+        from .styles import configure_ttk
+        configure_ttk(self)
 
         self.status_var = tk.StringVar(value="Select a tool from the menu.")
         self.progress_var = tk.DoubleVar(value=0.0)
@@ -101,6 +107,48 @@ class PDFToolkitApp(BaseTk):
             windll.shcore.SetProcessDpiAwareness(1)
         except Exception:
             return
+
+    def _physical_screen_size(self) -> tuple[int, int]:
+        """Return primary-monitor pixel dimensions, DPI-correct on Windows.
+
+        Falls back to winfo_screen* on non-Windows or if ctypes fails.
+        """
+        try:
+            from ctypes import windll
+            user32 = windll.user32
+            # SM_CXSCREEN=0, SM_CYSCREEN=1 — primary monitor in physical
+            # pixels once SetProcessDpiAwareness has been called.
+            return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+        except Exception:
+            return self.winfo_screenwidth(), self.winfo_screenheight()
+
+    def _apply_default_geometry(self) -> None:
+        """Size and centre the window as a fraction of the screen.
+
+        Breakpoints (screen width):
+          < 1366  → 95 % of screen  (compact laptop)
+          < 1920  → 92 % of screen  (typical 1080p / 1440p)
+          ≥ 1920  → 85 % of screen, capped at 2200×1400 (large / 4K)
+        """
+        sw, sh = self._physical_screen_size()
+
+        if sw < 1366:
+            frac = 0.95
+        elif sw < 1920:
+            frac = 0.92
+        else:
+            frac = 0.85
+
+        w = max(1100, min(int(sw * frac), 2200))
+        h = max(720,  min(int(sh * frac), 1400))
+
+        x = max(0, (sw - w) // 2)
+        y = max(0, (sh - h) // 2)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+        min_w = max(960, min(int(sw * 0.55), 1280))
+        min_h = max(640, min(int(sh * 0.55), 860))
+        self.minsize(min_w, min_h)
 
     # ------------------------------------------------------------------
     # DnD delegation

@@ -46,7 +46,7 @@ _RAIL_W = 56
 
 
 class _RailItem(tk.Frame):
-    """Single icon-button in the category rail."""
+    """Single icon-button in the category rail. 40×40 inside a 56-px rail."""
 
     def __init__(
         self,
@@ -56,30 +56,33 @@ class _RailItem(tk.Frame):
         label: str,
         on_click: Callable[[], None],
     ) -> None:
-        super().__init__(parent, bg=SURFACE_2, width=_RAIL_W, height=44, cursor="hand2")
+        super().__init__(parent, bg=SURFACE_2, width=_RAIL_W, height=40,
+                         cursor="hand2")
         self.pack_propagate(False)
         self._on_click = on_click
         self._active = False
 
-        # Active indicator bar (left edge)
-        self._bar = tk.Frame(self, bg=SURFACE_2, width=3)
-        self._bar.place(relx=0, rely=0.15, relheight=0.7)
+        # 40×40 hit-square centred in the 56-px rail
+        self._hit = tk.Frame(self, bg=SURFACE_2, width=40, height=40)
+        self._hit.place(relx=0.5, rely=0.5, anchor="center")
+        self._hit.pack_propagate(False)
+
+        # Active indicator bar (left edge, 3-px accent strip)
+        self._bar = tk.Frame(self, bg=SURFACE_2, width=3, height=24)
+        self._bar.place(relx=0, rely=0.5, anchor="w")
 
         self._icon_lbl = tk.Label(
-            self,
+            self._hit,
             text=icon,
             bg=SURFACE_2,
             fg=TEXT_MUTED,
-            font=body(16),
+            font=body(15),
         )
         self._icon_lbl.place(relx=0.5, rely=0.5, anchor="center")
-        self._icon_lbl.bind("<Button-1>", lambda _e: on_click())
-
-        self.bind("<Button-1>", lambda _e: on_click())
-        self.bind("<Enter>", lambda _e: self._hover(True))
-        self.bind("<Leave>", lambda _e: self._hover(False))
-        self._icon_lbl.bind("<Enter>", lambda _e: self._hover(True))
-        self._icon_lbl.bind("<Leave>", lambda _e: self._hover(False))
+        for w in (self, self._hit, self._icon_lbl):
+            w.bind("<Button-1>", lambda _e: on_click(), add="+")
+            w.bind("<Enter>", lambda _e: self._hover(True), add="+")
+            w.bind("<Leave>", lambda _e: self._hover(False), add="+")
 
     def set_active(self, active: bool) -> None:
         self._active = active
@@ -88,16 +91,16 @@ class _RailItem(tk.Frame):
     def _hover(self, entering: bool) -> None:
         if not self._active:
             bg = SURFACE_3 if entering else SURFACE_2
-            self.config(bg=bg)
+            self._hit.config(bg=bg)
             self._icon_lbl.config(bg=bg)
 
     def _refresh(self) -> None:
         if self._active:
-            self.config(bg=SURFACE_3)
+            self._hit.config(bg=SURFACE_3)
             self._icon_lbl.config(bg=SURFACE_3, fg=ACCENT)
             self._bar.config(bg=ACCENT)
         else:
-            self.config(bg=SURFACE_2)
+            self._hit.config(bg=SURFACE_2)
             self._icon_lbl.config(bg=SURFACE_2, fg=TEXT_MUTED)
             self._bar.config(bg=SURFACE_2)
 
@@ -127,14 +130,14 @@ class _CategoryRail(tk.Frame):
         self._build(on_home)
 
     def _build(self, on_home: Callable[[], None]) -> None:
-        # Home
+        # Home — top with 8-px padding above
         home_item = _RailItem(self, icon="⌂", label="Home", on_click=on_home)
-        home_item.pack(pady=(8, 0))
+        home_item.pack(pady=(8, 4))
 
-        # Divider
+        # Hairline divider — 1-px line, 28-px wide, centred
         tk.Frame(self, bg=BORDER, height=1, width=28).pack(pady=6)
 
-        # Category icons
+        # Category icons (gap 4 below each)
         icons = {"organize": "☰", "edit": "✏", "convert": "⇄", "secure": "⊕"}
         for cat in CATEGORIES:
             item = _RailItem(
@@ -143,15 +146,17 @@ class _CategoryRail(tk.Frame):
                 label=cat.label,
                 on_click=lambda cid=cat.id: self._select(cid),
             )
-            item.pack()
+            item.pack(pady=(0, 4))
             self._cat_items[cat.id] = item
 
-        # Spacer
+        # Spacer pushes utility icons to the bottom
         tk.Frame(self, bg=SURFACE_2).pack(fill="both", expand=True)
 
-        # Utility icons
-        _RailItem(self, icon="🔍", label="Search", on_click=lambda: None).pack(pady=(0, 4))
-        _RailItem(self, icon="⚙", label="Settings", on_click=lambda: None).pack(pady=(0, 8))
+        # Utility icons at bottom
+        _RailItem(self, icon="🔍", label="Search",
+                  on_click=lambda: None).pack(pady=(0, 4))
+        _RailItem(self, icon="⚙", label="Settings",
+                  on_click=lambda: None).pack(pady=(0, 8))
 
     def select_category(self, cat_id: str) -> None:
         if self._active_cat and self._active_cat in self._cat_items:

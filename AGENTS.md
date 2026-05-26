@@ -10,7 +10,7 @@ Repo-local guidance for `D:\Repos\AnM`.
 ## Working Rules
 
 - Keep rerun safety intact. Generated PDFs must not be rediscovered as source inputs.
-- Preserve both entry points: `python annotate_and_merge.py` and installed command `anm`.
+- Preserve entry points: installed `anm` (pywebview SPA, default), `anm --tk` (legacy Tk hub), `python -m anm`, and the `annotate_and_merge.py` shim. Full launch matrix lives in `docs/superpowers/specs/2026-05-23-pdf-toolkit-design.md`.
 - When changing workflow, build, release, test, or developer setup behavior, actively update this file, `README.md`, and the relevant config or workflow files in the same change.
 - When changing CLI behavior, update CLI tests and README examples in the same change.
 - Prefer explicit tests for pipeline behavior before adding more UI complexity.
