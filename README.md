@@ -1,6 +1,6 @@
 # Annotate and Merge PDFs
 
-AnM is a Windows-first desktop app for annotating and merging PDFs with a Tkinter GUI. It is now packaged as a small Python project with a testable PDF pipeline, drag-and-drop workflow, safer output handling, and a reproducible local/CI build.
+AnM is a Windows-first desktop PDF toolkit. The primary GUI is an HTML/CSS/JS SPA hosted in a `pywebview` window (Edge WebView2 on Windows); a legacy Tkinter hub stays reachable via `anm --tk` as a fallback. Backed by a testable PyMuPDF pipeline, drag-and-drop workflow, safer output handling, and a reproducible local/CI build.
 
 ## What it does
 
@@ -26,12 +26,14 @@ AnM is a Windows-first desktop app for annotating and merging PDFs with a Tkinte
 
 - Python 3.11+
 - Windows is the primary supported desktop target
-- Tkinter (typically included with Python)
+- Edge WebView2 runtime (ships with Windows 11; auto-installed by recent Windows Updates on 10)
+- Tkinter (only needed for the `--tk` fallback hub)
 
 Runtime dependencies:
 
 - `PyMuPDF`
-- `tkinterdnd2`
+- `pywebview`
+- `tkinterdnd2` (legacy hub only)
 
 ## Install for development
 
@@ -41,17 +43,11 @@ python -m pip install -e ".[dev]"
 
 ## Run the desktop app
 
-Either entry point works:
-
 ```powershell
-python annotate_and_merge.py
+.venv\Scripts\anm
 ```
 
-or
-
-```powershell
-anm
-```
+This opens the pywebview SPA. Alternative entry points (legacy `--tk` hub, `python -m anm`, the `annotate_and_merge.py` shim) are documented in `docs/superpowers/specs/2026-05-23-pdf-toolkit-design.md` under **CLI Summary**.
 
 ## CLI for power users and agents
 
@@ -120,7 +116,9 @@ This creates a PyInstaller build under `dist/AnM/`.
 ## Project layout
 
 - `src/anm/pipeline.py`: PDF discovery, annotation, merge, preview, cleanup.
-- `src/anm/gui.py`: Tkinter desktop workbench, drag and drop, progress UI.
+- `src/anm/tools/`: pure-function tool backends (split, rotate, reorder, delete, extract, …).
+- `src/anm/gui_web/`: primary GUI — pywebview window + HTML/CSS/JS SPA in `assets/`.
+- `src/anm/gui/`: legacy Tkinter hub, reachable via `anm --tk`.
 - `src/anm/cli.py`: argparse CLI for power users, scripts, and AI agents.
 - `src/anm/app_state.py`: queue ordering and generated-file filtering helpers.
 - `tests/`: unit, integration, and GUI smoke coverage.
