@@ -20,3 +20,5 @@ annotatedMerged.pdf
 annotated_*.pdf
 test_*.log
 .claude/
+.tmp/
+uv.lock
