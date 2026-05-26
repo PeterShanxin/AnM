@@ -103,7 +103,8 @@ def test_dispatch_extract(tmp_path: Path) -> None:
     })
 
     out = Path(result["outputs"][0])
-    assert fitz.open(out).page_count == 2
+    with fitz.open(out) as doc:
+        assert doc.page_count == 2
 
 
 def test_dispatch_delete(tmp_path: Path) -> None:
@@ -115,7 +116,8 @@ def test_dispatch_delete(tmp_path: Path) -> None:
     })
 
     out = Path(result["outputs"][0])
-    assert fitz.open(out).page_count == 3
+    with fitz.open(out) as doc:
+        assert doc.page_count == 3
 
 
 def test_dispatch_reorder(tmp_path: Path) -> None:
@@ -127,7 +129,8 @@ def test_dispatch_reorder(tmp_path: Path) -> None:
     })
 
     out = Path(result["outputs"][0])
-    assert fitz.open(out).page_count == 3
+    with fitz.open(out) as doc:
+        assert doc.page_count == 3
 
 
 def test_dispatch_reorder_rejects_non_list(tmp_path: Path) -> None:
@@ -257,4 +260,5 @@ def test_api_run_merge_ok(tmp_path: Path) -> None:
     assert len(result["data"]["outputs"]) == 1
     merged = Path(result["data"]["outputs"][0])
     assert merged.exists()
-    assert fitz.open(merged).page_count == 5
+    with fitz.open(merged) as doc:
+        assert doc.page_count == 5

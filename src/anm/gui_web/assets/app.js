@@ -641,8 +641,8 @@ function bindTool() {
       render();
     });
   });
-  // Lazy-load visible thumbs
-  loadVisibleThumbs();
+  // Lazy-load thumbs as cells scroll into view.
+  setupThumbObserver();
 }
 
 function handleRail(act) {
@@ -822,38 +822,91 @@ async function runActiveTool() {
 }
 
 // --------------------------------------------------------------------- //
-// Lazy thumbnail loading
+// Lazy thumbnail loading (viewport-aware via IntersectionObserver)
 // --------------------------------------------------------------------- //
+//
+// Old impl streamed every page in chunks of 20 regardless of what was on
+// screen — fine for 20-page PDFs, painful for a 500-page scan.  Now we
+// only request thumbs for cells whose intersection rect enters the
+// scroll container (plus a 200-px lookahead so scrolling stays smooth).
 
-async function loadVisibleThumbs() {
-  if (!state.pdf) return;
-  const needed = [];
-  for (let i = 0; i < state.pdf.page_count; i++) {
-    if (!state.thumbCache[i]) needed.push(i);
-    if (needed.length >= 20) break;  // batch in chunks of 20
+const _thumbState = {
+  observer: null,
+  queue: new Set(),    // page indices waiting to be fetched
+  flushScheduled: false,
+};
+
+function setupThumbObserver() {
+  if (_thumbState.observer) {
+    _thumbState.observer.disconnect();
+    _thumbState.observer = null;
   }
-  if (!needed.length) return;
-  try {
-    const batch = await api('get_page_thumbs', needed);
-    Object.assign(state.thumbCache, batch);
-    // Apply images without full re-render (avoids losing scroll position).
-    for (const idx of Object.keys(batch)) {
-      const wrap = document.querySelector(`[data-page="${idx}"]`);
-      if (!wrap) continue;
-      wrap.innerHTML = `<img class="thumb-img" src="${batch[idx]}" alt="Page ${parseInt(idx, 10) + 1}"><div class="thumb-label">${parseInt(idx, 10) + 1}</div>`;
-      // Re-bind click since innerHTML wipes listeners on children.
-      wrap.addEventListener('click', () => {
-        const i = parseInt(idx, 10);
-        if (state.selectedPages.has(i)) state.selectedPages.delete(i);
-        else state.selectedPages.add(i);
-        render();
-      });
+  _thumbState.queue.clear();
+  _thumbState.flushScheduled = false;
+  if (!state.pdf) return;
+
+  const root = document.querySelector('#page-grid-host');
+  if (!root) return;
+
+  _thumbState.observer = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const idx = parseInt(e.target.getAttribute('data-page'), 10);
+      if (Number.isNaN(idx)) continue;
+      if (state.thumbCache[idx]) {
+        _thumbState.observer.unobserve(e.target);
+        continue;
+      }
+      _thumbState.queue.add(idx);
     }
-    // Recurse to load the next chunk (defer to next frame so UI breathes).
-    requestAnimationFrame(loadVisibleThumbs);
+    scheduleThumbFlush();
+  }, {
+    root,
+    rootMargin: '200px 0px',  // pre-load a screenful above/below
+    threshold: 0.01,
+  });
+
+  document.querySelectorAll('.thumb-wrap[data-page]').forEach((w) => {
+    const idx = parseInt(w.getAttribute('data-page'), 10);
+    if (Number.isNaN(idx)) return;
+    if (state.thumbCache[idx]) return;
+    _thumbState.observer.observe(w);
+  });
+}
+
+function scheduleThumbFlush() {
+  if (_thumbState.flushScheduled) return;
+  _thumbState.flushScheduled = true;
+  requestAnimationFrame(flushThumbQueue);
+}
+
+async function flushThumbQueue() {
+  _thumbState.flushScheduled = false;
+  if (!_thumbState.queue.size) return;
+
+  // Batch up to 20 per call so a fast scroll doesn't fire 100 RPCs.
+  const batch = Array.from(_thumbState.queue).slice(0, 20);
+  for (const i of batch) _thumbState.queue.delete(i);
+
+  try {
+    const data = await api('get_page_thumbs', batch);
+    Object.assign(state.thumbCache, data);
+    for (const idx of Object.keys(data)) {
+      const wrap = document.querySelector(`.thumb-wrap[data-page="${idx}"]`);
+      if (!wrap) continue;
+      const pageNum = parseInt(idx, 10) + 1;
+      wrap.innerHTML =
+        `<img class="thumb-img" src="${data[idx]}" alt="Page ${pageNum}">` +
+        `<div class="thumb-label">${pageNum}</div>`;
+      // innerHTML wipes child listeners — re-bind on the wrap (parent).
+      // The original click handler on the wrap itself is still attached.
+      _thumbState.observer?.unobserve(wrap);
+    }
   } catch (exc) {
     console.error('Thumb load failed:', exc);
   }
+
+  if (_thumbState.queue.size) scheduleThumbFlush();
 }
 
 // --------------------------------------------------------------------- //

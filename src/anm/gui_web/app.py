@@ -125,11 +125,19 @@ class Api:
                     page_count = doc.page_count
             except Exception:  # noqa: BLE001 - skip unreadable file but keep going
                 page_count = 0
+            try:
+                size_bytes = path.stat().st_size
+            except OSError:
+                # File became unreadable between is_file() and stat()
+                # (permissions, dropped network share, deleted under us).
+                # Keep the file in the list but report size 0 so the JS
+                # layer doesn't crash on a missing field.
+                size_bytes = 0
             files.append({
                 "path": str(path),
                 "name": path.name,
                 "page_count": page_count,
-                "size_bytes": path.stat().st_size,
+                "size_bytes": size_bytes,
             })
         # Default output dir to the first file's parent if none chosen yet.
         if files:
@@ -156,7 +164,14 @@ class Api:
             if self._output_dir == Path.cwd() / "output":
                 # Default to the source folder until the user picks one.
                 self._output_dir = path.parent
-        size_bytes = path.stat().st_size
+        try:
+            size_bytes = path.stat().st_size
+        except OSError:
+            # File became inaccessible after we successfully opened it
+            # (network share dropped, permissions revoked) — preserve
+            # the envelope contract instead of letting the exception
+            # propagate across the JS bridge.
+            size_bytes = 0
         return _ok({
             "path": str(path),
             "name": path.name,
