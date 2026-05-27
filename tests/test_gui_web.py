@@ -141,12 +141,74 @@ def test_dispatch_reorder_rejects_non_list(tmp_path: Path) -> None:
         _dispatch_tool("reorder", src, tmp_path / "out", {"order": "3,1,2"})
 
 
+def test_dispatch_compress(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 2)
+
+    result = _dispatch_tool("compress", src, tmp_path / "out", {"quality": "medium"})
+
+    assert len(result["outputs"]) == 1
+    assert "smaller" in result["summary"]
+
+
+def test_dispatch_to_images(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 2)
+
+    result = _dispatch_tool("to_images", src, tmp_path / "out", {
+        "fmt": "png", "dpi": 72, "page_spec": "all",
+    })
+
+    assert len(result["outputs"]) == 2
+
+
+def test_dispatch_watermark(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 2)
+
+    result = _dispatch_tool("watermark", src, tmp_path / "out", {
+        "text": "DRAFT", "mode": "diagonal",
+    })
+
+    assert "Watermarked 2 page" in result["summary"]
+
+
+def test_dispatch_numbers(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 3)
+
+    result = _dispatch_tool("numbers", src, tmp_path / "out", {})
+
+    assert "Numbered 3 page" in result["summary"]
+
+
+def test_dispatch_metadata_read(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 1)
+
+    result = _dispatch_tool("metadata", src, tmp_path / "out", {})
+
+    assert "metadata" in result
+
+
+def test_dispatch_metadata_write(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 1)
+
+    result = _dispatch_tool("metadata", src, tmp_path / "out", {
+        "fields": {"title": "Test Doc"},
+    })
+
+    assert len(result["outputs"]) == 1
+    assert result["metadata"]["title"] == "Test Doc"
+
+
 def test_dispatch_unknown_tool(tmp_path: Path) -> None:
     src = tmp_path / "in.pdf"
     make_pdf(src, 1)
 
     with pytest.raises(ValueError, match="Tool not yet wired"):
-        _dispatch_tool("compress", src, tmp_path / "out", {})
+        _dispatch_tool("nonexistent_tool", src, tmp_path / "out", {})
 
 
 # ───────────────────────── Api envelope shape ──────────────────────────

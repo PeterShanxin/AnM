@@ -231,6 +231,96 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
     extract.add_argument("--json", action="store_true", help="print machine-readable JSON")
     extract.set_defaults(handler=handle_extract)
 
+    compress = add_command(
+        "compress",
+        help="compress a PDF",
+        description="Reduce PDF file size via garbage collection and image recompression.",
+        epilog="Examples:\n  anm compress .\\a.pdf --quality medium --output .\\compressed.pdf",
+    )
+    compress.add_argument("pdf", type=Path, help="PDF to compress")
+    compress.add_argument("--quality", choices=["high", "medium", "low"], default="medium")
+    compress.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    compress.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    compress.set_defaults(handler=handle_compress)
+
+    to_images = add_command(
+        "to-images",
+        help="export PDF pages as images",
+        description="Convert PDF pages to PNG or JPG images.",
+        epilog="Examples:\n  anm to-images .\\a.pdf --format png --dpi 300 --output .\\images\\",
+    )
+    to_images.add_argument("pdf", type=Path, help="PDF to convert")
+    to_images.add_argument("--format", choices=["png", "jpeg"], default="png", help="image format")
+    to_images.add_argument("--dpi", type=int, choices=[72, 150, 300], default=150, help="resolution")
+    to_images.add_argument("--pages", default="all", help="page selection (default: all)")
+    to_images.add_argument("--output", "-o", required=True, type=Path, help="output directory")
+    to_images.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    to_images.set_defaults(handler=handle_to_images)
+
+    from_images = add_command(
+        "from-images",
+        help="combine images into a PDF",
+        description="Create a PDF from PNG, JPG, BMP, or TIFF images.",
+        epilog="Examples:\n  anm from-images img1.jpg img2.png --page-size a4 --output .\\album.pdf",
+    )
+    from_images.add_argument("images", nargs="+", type=Path, help="image files in order")
+    from_images.add_argument("--page-size", choices=["a4", "letter", "fit"], default="a4")
+    from_images.add_argument("--orientation", choices=["auto", "portrait", "landscape"], default="auto")
+    from_images.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    from_images.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    from_images.set_defaults(handler=handle_from_images)
+
+    watermark = add_command(
+        "watermark",
+        help="add a text watermark",
+        description="Stamp text over PDF pages.",
+        epilog='Examples:\n  anm watermark .\\a.pdf --text "CONFIDENTIAL" --opacity 0.3 --output .\\wm.pdf',
+    )
+    watermark.add_argument("pdf", type=Path, help="PDF to watermark")
+    watermark.add_argument("--text", default="CONFIDENTIAL", help="watermark text")
+    watermark.add_argument("--mode", choices=["diagonal", "tiled", "header", "footer"], default="diagonal")
+    watermark.add_argument("--font-size", type=int, default=48)
+    watermark.add_argument("--opacity", type=float, default=0.3)
+    watermark.add_argument("--rotation", type=int, default=45)
+    watermark.add_argument("--pages", default="all", help="page selection (default: all)")
+    watermark.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    watermark.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    watermark.set_defaults(handler=handle_watermark)
+
+    page_numbers = add_command(
+        "page-numbers",
+        help="add page numbers",
+        description="Stamp page numbers on PDF pages.",
+        epilog='Examples:\n  anm page-numbers .\\a.pdf --format "Page {page} of {total}" --output .\\numbered.pdf',
+    )
+    page_numbers.add_argument("pdf", type=Path, help="PDF to number")
+    page_numbers.add_argument("--format", default="Page {page} of {total}", help="number format")
+    page_numbers.add_argument("--position", choices=POSITION_CHOICES, default="bottom-center")
+    page_numbers.add_argument("--start", type=int, default=1, help="starting page number")
+    page_numbers.add_argument("--skip", type=int, default=0, help="skip first N pages")
+    page_numbers.add_argument("--font-size", type=int, default=10)
+    page_numbers.add_argument("--opacity", type=float, default=0.7)
+    page_numbers.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
+    page_numbers.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    page_numbers.set_defaults(handler=handle_page_numbers)
+
+    metadata_cmd = add_command(
+        "metadata",
+        help="read or edit PDF metadata",
+        description="Show or set title, author, subject, keywords, creator, producer.",
+        epilog=(
+            "Examples:\n"
+            '  anm metadata .\\a.pdf --show\n'
+            '  anm metadata .\\a.pdf --set title="My Doc" --set author="Name" --output .\\updated.pdf'
+        ),
+    )
+    metadata_cmd.add_argument("pdf", type=Path, help="PDF to inspect or modify")
+    metadata_cmd.add_argument("--show", action="store_true", help="show current metadata")
+    metadata_cmd.add_argument("--set", action="append", metavar='KEY=VALUE', help="set a metadata field")
+    metadata_cmd.add_argument("--output", "-o", type=Path, help="output PDF path (required for --set)")
+    metadata_cmd.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    metadata_cmd.set_defaults(handler=handle_metadata)
+
     parser.command_parsers = command_parsers  # type: ignore[attr-defined]
     return parser
 
@@ -611,6 +701,220 @@ def handle_extract(
         write_json(stdout, payload)
     else:
         stdout.write(f"Extracted {result.pages_extracted} page(s) → {result.output_path}\n")
+    return 0
+
+
+def handle_compress(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.compress import CompressOptions, CompressQuality, compress_pdf
+
+    result = compress_pdf(
+        source,
+        CompressOptions(quality=CompressQuality(args.quality)),
+        output_path=args.output,
+    )
+
+    saved = result.original_size - result.compressed_size
+    pct = (saved / result.original_size * 100) if result.original_size else 0
+    payload = {
+        "ok": True,
+        "command": "compress",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "original_size": result.original_size,
+        "compressed_size": result.compressed_size,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(
+            f"Compressed → {result.output_path}\n"
+            f"  {result.original_size:,} → {result.compressed_size:,} bytes ({pct:.0f}% smaller)\n"
+        )
+    return 0
+
+
+def handle_to_images(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.to_images import ImageFormat, ToImagesOptions, pdf_to_images
+
+    result = pdf_to_images(
+        source,
+        ToImagesOptions(
+            fmt=ImageFormat(args.format),
+            dpi=args.dpi,
+            page_spec=args.pages,
+        ),
+        output_dir=args.output,
+    )
+
+    payload = {
+        "ok": True,
+        "command": "to-images",
+        "inputs": [str(source)],
+        "outputs": stringify_paths(result.output_paths),
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Exported {len(result.output_paths)} image(s) to {args.output}\n")
+    return 0
+
+
+def handle_from_images(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    image_paths = [p.resolve() for p in args.images]
+    for p in image_paths:
+        if not p.is_file():
+            raise FileNotFoundError(f"Image not found: {p}")
+    from .tools.from_images import FromImagesOptions, Orientation, PageSize, images_to_pdf
+
+    result = images_to_pdf(
+        image_paths,
+        FromImagesOptions(
+            page_size=PageSize(args.page_size),
+            orientation=Orientation(args.orientation),
+        ),
+        output_path=args.output,
+    )
+
+    payload = {
+        "ok": True,
+        "command": "from-images",
+        "inputs": [str(p) for p in image_paths],
+        "output": str(result.output_path),
+        "page_count": result.page_count,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Created {result.page_count}-page PDF → {result.output_path}\n")
+    return 0
+
+
+def handle_watermark(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.watermark import WatermarkMode, WatermarkOptions, watermark_pdf
+
+    result = watermark_pdf(
+        source,
+        WatermarkOptions(
+            text=args.text,
+            font_size=args.font_size,
+            opacity=args.opacity,
+            rotation=args.rotation,
+            mode=WatermarkMode(args.mode),
+            page_spec=args.pages,
+        ),
+        output_path=args.output,
+    )
+
+    payload = {
+        "ok": True,
+        "command": "watermark",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "pages_stamped": result.pages_stamped,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Watermarked {result.pages_stamped} page(s) → {result.output_path}\n")
+    return 0
+
+
+def handle_page_numbers(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.page_numbers import PageNumbersOptions, add_page_numbers
+
+    result = add_page_numbers(
+        source,
+        PageNumbersOptions(
+            fmt=args.format,
+            position=args.position,
+            start_number=args.start,
+            skip_first_n=args.skip,
+            font_size=args.font_size,
+            opacity=args.opacity,
+        ),
+        output_path=args.output,
+    )
+
+    payload = {
+        "ok": True,
+        "command": "page-numbers",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "pages_numbered": result.pages_numbered,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Numbered {result.pages_numbered} page(s) → {result.output_path}\n")
+    return 0
+
+
+def handle_metadata(
+    args: argparse.Namespace, stdout: TextIO, stderr: TextIO, _gui_runner: Any
+) -> int:
+    source = validate_pdf_paths([args.pdf])[0]
+    from .tools.metadata import MetadataOptions, read_metadata, write_metadata
+
+    if args.show or not args.set:
+        meta = read_metadata(source)
+        payload = {
+            "ok": True,
+            "command": "metadata",
+            "inputs": [str(source)],
+            "output": None,
+            "metadata": meta,
+            "warnings": [],
+        }
+        if args.json:
+            write_json(stdout, payload)
+        else:
+            stdout.write(f"{source}\n")
+            for k, v in meta.items():
+                stdout.write(f"  {k}: {v}\n")
+        return 0
+
+    if not args.output:
+        raise CliError("--output is required when using --set")
+    fields: dict[str, str] = {}
+    for pair in args.set:
+        if "=" not in pair:
+            raise CliError(f"Invalid --set format: '{pair}' (expected KEY=VALUE)")
+        k, v = pair.split("=", 1)
+        fields[k.strip()] = v.strip()
+
+    result = write_metadata(source, MetadataOptions(fields=fields), output_path=args.output)
+
+    payload = {
+        "ok": True,
+        "command": "metadata",
+        "inputs": [str(source)],
+        "output": str(result.output_path),
+        "metadata": result.metadata,
+        "warnings": [],
+    }
+    if args.json:
+        write_json(stdout, payload)
+    else:
+        stdout.write(f"Updated metadata → {result.output_path}\n")
     return 0
 
 

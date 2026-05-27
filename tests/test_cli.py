@@ -293,3 +293,136 @@ def test_extract_cli(tmp_path: Path) -> None:
     assert "A" in doc[0].get_text()
     assert "C" in doc[1].get_text()
     doc.close()
+
+
+def test_compress_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    output = tmp_path / "compressed.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["compress", str(source), "--quality", "medium", "--output", str(output)]
+    )
+
+    assert code == 0
+    assert output.is_file()
+
+
+def test_compress_cli_json(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    output = tmp_path / "compressed.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["compress", str(source), "--output", str(output), "--json"]
+    )
+
+    assert code == 0
+    payload = json.loads(stdout)
+    assert payload["ok"] is True
+    assert payload["original_size"] > 0
+
+
+def test_to_images_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    out_dir = tmp_path / "images"
+
+    code, stdout, stderr = run_cli(
+        ["to-images", str(source), "--format", "png", "--dpi", "72", "--output", str(out_dir)]
+    )
+
+    assert code == 0
+    assert out_dir.is_dir()
+
+
+def test_to_images_cli_json(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    out_dir = tmp_path / "images"
+
+    code, stdout, stderr = run_cli(
+        ["to-images", str(source), "--output", str(out_dir), "--json"]
+    )
+
+    assert code == 0
+    payload = json.loads(stdout)
+    assert payload["ok"] is True
+    assert len(payload["outputs"]) == 1
+
+
+def test_from_images_cli(tmp_path: Path) -> None:
+    img = tmp_path / "img.png"
+    pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 100, 100), 0)
+    pix.set_rect(pix.irect, (255, 0, 0))
+    pix.save(str(img))
+    output = tmp_path / "album.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["from-images", str(img), "--page-size", "a4", "--output", str(output)]
+    )
+
+    assert code == 0
+    assert output.is_file()
+
+
+def test_watermark_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    output = tmp_path / "wm.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["watermark", str(source), "--text", "DRAFT", "--output", str(output)]
+    )
+
+    assert code == 0
+    assert output.is_file()
+
+
+def test_page_numbers_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    output = tmp_path / "numbered.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["page-numbers", str(source), "--output", str(output)]
+    )
+
+    assert code == 0
+    assert output.is_file()
+
+
+def test_metadata_show_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+
+    code, stdout, stderr = run_cli(["metadata", str(source), "--show"])
+
+    assert code == 0
+    assert str(source) in stdout
+
+
+def test_metadata_set_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    output = tmp_path / "updated.pdf"
+
+    code, stdout, stderr = run_cli(
+        ["metadata", str(source), "--set", "title=My Title", "--output", str(output)]
+    )
+
+    assert code == 0
+    assert output.is_file()
+    meta = fitz.open(output).metadata
+    assert meta["title"] == "My Title"
+
+
+def test_metadata_set_requires_output(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+
+    code, stdout, stderr = run_cli(
+        ["metadata", str(source), "--set", "title=Test"]
+    )
+
+    assert code == 1

@@ -35,6 +35,13 @@ const state = {
     },
     dragIndex: null,     // index of row currently being dragged
   },
+  // From-images state — multi-file tool like merge.
+  from_images: {
+    files: [],           // [{ path, name, size_bytes }]
+    dragIndex: null,
+  },
+  // Metadata cache — populated when metadata tool loads a PDF.
+  metadataCache: null,
   recents: [             // placeholder until persisted-recents lands
     { name: 'Quarterly-Report.pdf', tool: 'Split',    when: '2h ago' },
     { name: 'Invoice-104.pdf',      tool: 'Annotate', when: 'Yesterday' },
@@ -302,10 +309,13 @@ function renderToolMain(tool) {
 
 function renderToolHeader(tool) {
   const isMerge = tool.id === 'merge';
-  const hasInput = isMerge ? state.merge.files.length > 0 : !!state.pdf;
+  const isFromImages = tool.id === 'from_images';
+  const hasInput = isMerge ? state.merge.files.length > 0
+    : isFromImages ? state.from_images.files.length > 0
+    : !!state.pdf;
   const runDisabled = state.running || !hasInput;
-  const openLabel = isMerge ? 'Add files' : 'Open file';
-  const openAct = isMerge ? 'add-files' : 'open';
+  const openLabel = isMerge ? 'Add files' : isFromImages ? 'Add images' : 'Open file';
+  const openAct = isMerge ? 'add-files' : isFromImages ? 'add-images' : 'open';
   return `
     <div style="height:56px;padding:0 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--anm-border);background:var(--anm-surface)">
       <div style="width:32px;height:32px;border-radius:7px;background:var(--anm-accent-soft);color:var(--anm-accent);display:flex;align-items:center;justify-content:center">
@@ -331,6 +341,16 @@ function renderToolBody(tool) {
       </div>
       <div class="scroll" style="width:280px;background:var(--anm-surface);border-left:1px solid var(--anm-border);padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto">
         ${mergeInspector()}
+      </div>
+    `;
+  }
+  if (tool.id === 'from_images') {
+    return `
+      <div class="scroll" style="flex:1;padding:20px;overflow:auto">
+        ${renderImageFileList()}
+      </div>
+      <div class="scroll" style="width:280px;background:var(--anm-surface);border-left:1px solid var(--anm-border);padding:18px;display:flex;flex-direction:column;gap:14px;overflow:auto">
+        ${renderInspector(tool)}
       </div>
     `;
   }
@@ -483,23 +503,35 @@ function renderPageGrid() {
 
 function renderInspector(tool) {
   switch (tool.id) {
-    case 'split':   return splitInspector();
-    case 'rotate':  return rotateInspector();
-    case 'extract': return extractInspector();
-    case 'delete':  return deleteInspector();
-    case 'reorder': return reorderInspector();
-    default:        return `<div class="cap">No options</div>`;
+    case 'split':       return splitInspector();
+    case 'rotate':      return rotateInspector();
+    case 'extract':     return extractInspector();
+    case 'delete':      return deleteInspector();
+    case 'reorder':     return reorderInspector();
+    case 'compress':    return compressInspector();
+    case 'to_images':   return toImagesInspector();
+    case 'from_images': return fromImagesInspector();
+    case 'watermark':   return watermarkInspector();
+    case 'numbers':     return numbersInspector();
+    case 'metadata':    return metadataInspector();
+    default:            return `<div class="cap">No options</div>`;
   }
 }
 
 function getOpts(id) {
   if (!state.options[id]) {
     const defaults = {
-      split:   { mode: 'each_page', page_spec: '', every_n: 2 },
-      rotate:  { angle: 90, page_spec: 'all' },
-      extract: { page_spec: '' },
-      delete:  { page_spec: '' },
-      reorder: { order: '' },
+      split:       { mode: 'each_page', page_spec: '', every_n: 2 },
+      rotate:      { angle: 90, page_spec: 'all' },
+      extract:     { page_spec: '' },
+      delete:      { page_spec: '' },
+      reorder:     { order: '' },
+      compress:    { quality: 'medium' },
+      to_images:   { fmt: 'png', dpi: 150, page_spec: 'all' },
+      from_images: { page_size: 'a4', orientation: 'auto' },
+      watermark:   { text: 'CONFIDENTIAL', font_size: 48, opacity: 0.3, rotation: 45, mode: 'diagonal', color: 'gray', page_spec: 'all' },
+      numbers:     { fmt: 'Page {page} of {total}', position: 'bottom-center', start_number: 1, skip_first_n: 0, font_size: 10, opacity: 0.7, margin: 24 },
+      metadata:    { fields: {} },
     };
     state.options[id] = defaults[id] || {};
   }
@@ -573,6 +605,153 @@ function reorderInspector() {
   `;
 }
 
+function compressInspector() {
+  const o = getOpts('compress');
+  return `
+    <div class="cap">Quality</div>
+    <div data-radio="quality" style="display:flex;flex-direction:column;gap:8px">
+      ${radioCard('High', 'Best quality, mild compression', o.quality === 'high', 'high')}
+      ${radioCard('Medium', 'Balanced quality & size', o.quality === 'medium', 'medium')}
+      ${radioCard('Low', 'Smallest file, visible loss', o.quality === 'low', 'low')}
+    </div>
+    ${outputBlock()}
+  `;
+}
+
+function toImagesInspector() {
+  const o = getOpts('to_images');
+  return `
+    <div class="cap">Format</div>
+    <div data-radio="fmt" style="display:flex;flex-direction:column;gap:8px">
+      ${radioCard('PNG', 'Lossless, larger files', o.fmt === 'png', 'png')}
+      ${radioCard('JPEG', 'Smaller files, lossy', o.fmt === 'jpeg', 'jpeg')}
+    </div>
+    <div class="cap">DPI</div>
+    <div data-radio="dpi" style="display:flex;flex-direction:column;gap:8px">
+      ${radioCard('72 DPI', 'Screen / preview', o.dpi === 72, '72')}
+      ${radioCard('150 DPI', 'Balanced', o.dpi === 150, '150')}
+      ${radioCard('300 DPI', 'Print quality', o.dpi === 300, '300')}
+    </div>
+    <div class="cap">Pages</div>
+    <input class="anm-input" data-bind="page_spec" placeholder="all  |  1-3,5" value="${escapeAttr(o.page_spec)}">
+    ${outputBlock()}
+  `;
+}
+
+function fromImagesInspector() {
+  const o = getOpts('from_images');
+  return `
+    <div class="cap">Page size</div>
+    <div data-radio="page_size" style="display:flex;flex-direction:column;gap:8px">
+      ${radioCard('A4', '210 × 297 mm', o.page_size === 'a4', 'a4')}
+      ${radioCard('Letter', '8.5 × 11 in', o.page_size === 'letter', 'letter')}
+      ${radioCard('Fit to image', 'Match image dimensions', o.page_size === 'fit', 'fit')}
+    </div>
+    <div class="cap">Orientation</div>
+    <div data-radio="orientation" style="display:flex;flex-direction:column;gap:8px">
+      ${radioCard('Auto', 'Match image aspect', o.orientation === 'auto', 'auto')}
+      ${radioCard('Portrait', 'Tall pages', o.orientation === 'portrait', 'portrait')}
+      ${radioCard('Landscape', 'Wide pages', o.orientation === 'landscape', 'landscape')}
+    </div>
+    ${outputBlock()}
+  `;
+}
+
+function watermarkInspector() {
+  const o = getOpts('watermark');
+  return `
+    <div class="cap">Watermark text</div>
+    <input class="anm-input" data-bind="text" value="${escapeAttr(o.text)}" placeholder="CONFIDENTIAL">
+    <div class="cap">Mode</div>
+    <div data-radio="mode" style="display:flex;flex-direction:column;gap:8px">
+      ${radioCard('Diagonal', 'Centered, angled', o.mode === 'diagonal', 'diagonal')}
+      ${radioCard('Tiled', 'Repeat across page', o.mode === 'tiled', 'tiled')}
+      ${radioCard('Header', 'Top of page', o.mode === 'header', 'header')}
+      ${radioCard('Footer', 'Bottom of page', o.mode === 'footer', 'footer')}
+    </div>
+    <div class="cap">Color</div>
+    <div data-radio="color" style="display:flex;flex-direction:column;gap:8px">
+      ${radioCard('Gray', '', o.color === 'gray', 'gray')}
+      ${radioCard('Red', '', o.color === 'red', 'red')}
+      ${radioCard('Blue', '', o.color === 'blue', 'blue')}
+      ${radioCard('Black', '', o.color === 'black', 'black')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label style="font-size:11px;color:var(--anm-text-muted);display:block">Font size</label>
+        <input class="anm-input" type="number" min="8" max="120" data-bind="font_size" value="${o.font_size}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--anm-text-muted);display:block">Opacity</label>
+        <input class="anm-input" type="number" min="0" max="1" step="0.05" data-bind="opacity" value="${o.opacity}">
+      </div>
+    </div>
+    <div>
+      <label style="font-size:11px;color:var(--anm-text-muted);display:block">Rotation (°)</label>
+      <input class="anm-input" type="number" min="0" max="360" data-bind="rotation" value="${o.rotation}">
+    </div>
+    <div class="cap">Pages</div>
+    <input class="anm-input" data-bind="page_spec" placeholder="all  |  1-3,5" value="${escapeAttr(o.page_spec)}">
+    ${outputBlock()}
+  `;
+}
+
+function numbersInspector() {
+  const o = getOpts('numbers');
+  const posButtons = POSITIONS.map(p => `
+    <button class="anm-btn ${o.position === p ? 'anm-btn-primary' : ''}" data-numpos="${p}" style="padding:4px 6px;font-size:11px;height:auto">
+      ${escapeHtml(p)}
+    </button>
+  `).join('');
+  return `
+    <div class="cap">Format</div>
+    <input class="anm-input" data-bind="fmt" value="${escapeAttr(o.fmt)}" placeholder="Page {page} of {total}">
+    <div style="font-size:10px;color:var(--anm-text-subtle)">Tokens: {page} {total}</div>
+    <div class="cap">Position</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">${posButtons}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label style="font-size:11px;color:var(--anm-text-muted);display:block">Start #</label>
+        <input class="anm-input" type="number" min="1" data-bind="start_number" value="${o.start_number}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--anm-text-muted);display:block">Skip first N</label>
+        <input class="anm-input" type="number" min="0" data-bind="skip_first_n" value="${o.skip_first_n}">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label style="font-size:11px;color:var(--anm-text-muted);display:block">Font size</label>
+        <input class="anm-input" type="number" min="6" max="36" data-bind="font_size" value="${o.font_size}">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--anm-text-muted);display:block">Opacity</label>
+        <input class="anm-input" type="number" min="0" max="1" step="0.05" data-bind="opacity" value="${o.opacity}">
+      </div>
+    </div>
+    ${outputBlock()}
+  `;
+}
+
+function metadataInspector() {
+  const o = getOpts('metadata');
+  const fields = o.fields || {};
+  const meta = state.metadataCache || {};
+  const keys = ['title', 'author', 'subject', 'keywords', 'creator', 'producer'];
+  const rows = keys.map(k => `
+    <div>
+      <label style="font-size:11px;color:var(--anm-text-muted);display:block;text-transform:capitalize">${escapeHtml(k)}</label>
+      <input class="anm-input" data-metafield="${k}" value="${escapeAttr(fields[k] || meta[k] || '')}" placeholder="${escapeAttr(k)}">
+    </div>
+  `).join('');
+  return `
+    <div class="cap">PDF Metadata</div>
+    ${state.pdf ? '' : '<div style="font-size:12px;color:var(--anm-text-muted);margin-bottom:8px">Open a PDF to view/edit metadata.</div>'}
+    ${rows}
+    ${outputBlock()}
+  `;
+}
+
 function outputBlock() {
   return `
     <div class="anm-divider"></div>
@@ -606,11 +785,14 @@ function bindTool() {
   document.querySelectorAll('[data-act="open"]').forEach(b => b.addEventListener('click', openPdfDialog));
   document.querySelectorAll('[data-act="add-files"]').forEach(b => b.addEventListener('click', addMergeFiles));
   document.querySelectorAll('[data-act="clear-files"]').forEach(b => b.addEventListener('click', clearMergeFiles));
+  document.querySelectorAll('[data-act="add-images"]').forEach(b => b.addEventListener('click', addImageFiles));
+  document.querySelectorAll('[data-act="clear-images"]').forEach(b => b.addEventListener('click', clearImageFiles));
   document.querySelector('[data-act="run"]')?.addEventListener('click', runActiveTool);
   document.querySelector('[data-act="pick-out"]')?.addEventListener('click', pickOutputDir);
 
-  // Merge-specific: file row drag-reorder + remove + position buttons + binds
+  // Multi-file tools: drag-reorder + remove + binds
   bindMergeUI();
+  bindFromImagesUI();
 
   // Radio cards
   document.querySelectorAll('[data-radio]').forEach(group => {
@@ -629,7 +811,24 @@ function bindTool() {
     const key = input.getAttribute('data-bind');
     input.addEventListener('input', () => {
       const o = getOpts(state.toolId);
-      o[key] = input.type === 'number' ? parseInt(input.value || '0', 10) : input.value;
+      o[key] = input.type === 'number' ? parseFloat(input.value || '0') : input.value;
+    });
+  });
+  // Page-numbers position chips
+  document.querySelectorAll('[data-numpos]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const o = getOpts('numbers');
+      o.position = btn.getAttribute('data-numpos');
+      render();
+    });
+  });
+  // Metadata field bindings
+  document.querySelectorAll('[data-metafield]').forEach(input => {
+    const key = input.getAttribute('data-metafield');
+    input.addEventListener('input', () => {
+      const o = getOpts('metadata');
+      if (!o.fields) o.fields = {};
+      o.fields[key] = input.value;
     });
   });
   // Page thumbs
@@ -762,6 +961,119 @@ async function runMerge() {
 }
 
 // --------------------------------------------------------------------- //
+// From-images UI helpers
+// --------------------------------------------------------------------- //
+
+function renderImageFileList() {
+  const files = state.from_images.files;
+  if (!files.length) {
+    return `
+      <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--anm-text-muted);text-align:center;padding:40px">
+        <div style="font-size:48px;color:var(--anm-border-strong);margin-bottom:16px">${icon('from_images', 48)}</div>
+        <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--anm-text)">No images yet</div>
+        <div style="font-size:13px;margin-bottom:20px">Add PNG, JPG, BMP, or TIFF images.</div>
+        <button data-act="add-images" class="anm-btn anm-btn-primary">${icon('open', 14)} Add images</button>
+      </div>
+    `;
+  }
+  const rows = files.map((f, i) => `
+    <div class="merge-row" draggable="true" data-irow="${i}"
+         style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--anm-surface);border:1px solid var(--anm-border);border-radius:var(--anm-radius);cursor:grab">
+      <div style="color:var(--anm-text-subtle);font-size:12px;width:18px;text-align:right">${i + 1}</div>
+      <div style="width:28px;height:36px;flex-shrink:0;background:var(--anm-surface-2);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--anm-text-subtle)">${icon('images', 14)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(f.name)}</div>
+        <div style="font-size:11px;color:var(--anm-text-subtle)">${formatBytes(f.size_bytes)}</div>
+      </div>
+      <button class="anm-btn anm-btn-ghost" data-iremove="${i}" title="Remove" style="padding:0 8px">${icon('close', 14)}</button>
+    </div>
+  `).join('');
+  const totalBytes = files.reduce((sum, f) => sum + (f.size_bytes || 0), 0);
+  return `
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--anm-text-muted);margin-bottom:12px">
+      ${icon('images', 14)}
+      <span style="color:var(--anm-text);font-weight:500">${files.length} image(s)</span>
+      <span>· ${formatBytes(totalBytes)}</span>
+      <span style="flex:1"></span>
+      <button data-act="add-images" class="anm-btn anm-btn-ghost" style="padding:0 8px">${icon('plus', 14)} Add more</button>
+      <button data-act="clear-images" class="anm-btn anm-btn-ghost" style="padding:0 8px">${icon('close', 14)} Clear</button>
+    </div>
+    <div id="image-list" style="display:flex;flex-direction:column;gap:6px">${rows}</div>
+  `;
+}
+
+function bindFromImagesUI() {
+  document.querySelectorAll('[data-irow]').forEach(row => {
+    const idx = parseInt(row.getAttribute('data-irow'), 10);
+    row.addEventListener('dragstart', (e) => {
+      state.from_images.dragIndex = idx;
+      e.dataTransfer.effectAllowed = 'move';
+      row.style.opacity = '0.5';
+    });
+    row.addEventListener('dragend', () => {
+      state.from_images.dragIndex = null;
+      row.style.opacity = '';
+    });
+    row.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const from = state.from_images.dragIndex;
+      if (from == null || from === idx) return;
+      const files = state.from_images.files.slice();
+      const [moved] = files.splice(from, 1);
+      files.splice(idx, 0, moved);
+      state.from_images.files = files;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-iremove]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.from_images.files.splice(parseInt(btn.getAttribute('data-iremove'), 10), 1);
+      render();
+    });
+  });
+}
+
+async function addImageFiles() {
+  try {
+    const data = await api('open_images_dialog');
+    if (!data || !data.files || !data.files.length) { toast('No images picked.'); return; }
+    const existing = new Set(state.from_images.files.map(f => f.path));
+    for (const f of data.files) if (!existing.has(f.path)) state.from_images.files.push(f);
+    render();
+  } catch (exc) {
+    toast(exc.message || String(exc), { error: true });
+  }
+}
+
+function clearImageFiles() {
+  state.from_images.files = [];
+  render();
+}
+
+async function runFromImages() {
+  if (state.running) return;
+  if (!state.from_images.files.length) { toast('Add at least one image.', { error: true }); return; }
+  state.running = true;
+  render();
+  try {
+    const opts = getOpts('from_images');
+    const result = await api(
+      'run_from_images',
+      state.from_images.files.map(f => f.path),
+      opts,
+    );
+    toast(result.summary || 'Done.');
+  } catch (exc) {
+    toast(exc.message || String(exc), { error: true });
+  } finally {
+    state.running = false;
+    render();
+  }
+}
+
+// --------------------------------------------------------------------- //
 // PDF actions
 // --------------------------------------------------------------------- //
 
@@ -797,8 +1109,9 @@ async function pickOutputDir() {
 async function runActiveTool() {
   if (!state.toolId || state.running) return;
 
-  // Merge is the only multi-file tool — uses its own dispatcher.
+  // Multi-file tools use their own dispatchers.
   if (state.toolId === 'merge') return runMerge();
+  if (state.toolId === 'from_images') return runFromImages();
 
   if (!state.pdf) return;
   const opts = { ...getOpts(state.toolId) };
@@ -920,6 +1233,17 @@ function enterTool(id) {
   state.toolId = id;
   state.activeCat = tool.cat;
   render();
+  if (id === 'metadata' && state.pdf) loadMetadata();
+}
+
+async function loadMetadata() {
+  try {
+    const meta = await api('get_metadata');
+    state.metadataCache = meta;
+    const o = getOpts('metadata');
+    if (!o.fields || !Object.keys(o.fields).length) o.fields = {};
+    render();
+  } catch (_) { /* ignore */ }
 }
 
 function toggleTheme() {

@@ -29,11 +29,17 @@ import webview
 
 from ..models import AnnotationOptions, RunOptions
 from ..pipeline import process_pdfs
+from ..tools.compress import CompressOptions, CompressQuality, compress_pdf
 from ..tools.delete_pages import DeletePagesOptions, delete_pages
 from ..tools.extract import ExtractOptions, extract_pages
+from ..tools.from_images import FromImagesOptions, Orientation, PageSize, images_to_pdf
+from ..tools.metadata import MetadataOptions, read_metadata, write_metadata
+from ..tools.page_numbers import PageNumbersOptions, add_page_numbers
 from ..tools.reorder import ReorderOptions, reorder_pdf
 from ..tools.rotate import RotateOptions, rotate_pdf
 from ..tools.split import SplitMode, SplitOptions, split_pdf
+from ..tools.to_images import ImageFormat, ToImagesOptions, pdf_to_images
+from ..tools.watermark import WatermarkMode, WatermarkOptions, watermark_pdf
 
 # Assets shipped alongside this module.
 _ASSETS_DIR = Path(__file__).resolve().parent / "assets"
@@ -297,6 +303,86 @@ class Api:
     # Misc
     # ------------------------------------------------------------------
 
+    def open_images_dialog(self) -> dict[str, Any]:
+        """Multi-file image picker for Images→PDF tool."""
+        window = webview.active_window()
+        if window is None:
+            return _err("No active window")
+        try:
+            result = window.create_file_dialog(
+                webview.OPEN_DIALOG,
+                file_types=(
+                    "Image files (*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.tif)",
+                    "All files (*.*)",
+                ),
+                allow_multiple=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return _err(f"Dialog failed: {exc}")
+
+        if not result:
+            return _ok({"files": []})
+
+        valid_exts = {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif"}
+        files: list[dict[str, Any]] = []
+        for raw in result:
+            path = Path(raw).expanduser().resolve()
+            if not path.is_file() or path.suffix.lower() not in valid_exts:
+                continue
+            try:
+                size_bytes = path.stat().st_size
+            except OSError:
+                size_bytes = 0
+            files.append({"path": str(path), "name": path.name, "size_bytes": size_bytes})
+        return _ok({"files": files})
+
+    def get_metadata(self) -> dict[str, Any]:
+        with self._lock:
+            pdf = self._current_pdf
+        if pdf is None:
+            return _err("No PDF loaded")
+        try:
+            meta = read_metadata(pdf)
+        except Exception as exc:  # noqa: BLE001
+            return _err(str(exc))
+        return _ok(meta)
+
+    def run_from_images(
+        self,
+        files: list[str],
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Convert a list of images into a single PDF."""
+        if not files:
+            return _err("Pick at least one image.")
+        paths = [Path(f).expanduser().resolve() for f in files]
+        missing = [p for p in paths if not p.is_file()]
+        if missing:
+            return _err(f"File(s) not found: {', '.join(p.name for p in missing)}")
+
+        with self._lock:
+            out_dir = self._output_dir
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            return _err(f"Cannot create output folder: {exc}")
+
+        options = options or {}
+        try:
+            opts = FromImagesOptions(
+                page_size=PageSize(str(options.get("page_size", "a4"))),
+                orientation=Orientation(str(options.get("orientation", "auto"))),
+            )
+            out_path = out_dir / "images_combined.pdf"
+            result = images_to_pdf(paths, opts, output_path=out_path)
+        except Exception as exc:  # noqa: BLE001
+            return _err(f"{exc}\n\n{traceback.format_exc(limit=3)}")
+
+        return _ok({
+            "outputs": [str(result.output_path)],
+            "summary": f"Created {result.page_count}-page PDF → {result.output_path.name}",
+        })
+
     def reveal_path(self, path_str: str) -> dict[str, Any]:
         """Open *path_str* in the OS file explorer (best-effort)."""
         import os
@@ -317,6 +403,14 @@ class Api:
         except Exception as exc:  # noqa: BLE001
             return _err(str(exc))
         return _ok(None)
+
+
+def _fmt_bytes(n: int) -> str:
+    if n < 1024:
+        return f"{n} B"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.1f} KB"
+    return f"{n / 1024 / 1024:.1f} MB"
 
 
 def _dispatch_tool(
@@ -384,6 +478,91 @@ def _dispatch_tool(
         return {
             "outputs": [str(result.output_path)],
             "summary": f"Reordered → {result.output_path.name}",
+        }
+
+    if tool_id == "compress":
+        options = CompressOptions(
+            quality=CompressQuality(str(opts.get("quality", "medium"))),
+        )
+        out_path = out_dir / f"{pdf.stem}_compressed.pdf"
+        result = compress_pdf(pdf, options, output_path=out_path)
+        saved = result.original_size - result.compressed_size
+        pct = (saved / result.original_size * 100) if result.original_size else 0
+        return {
+            "outputs": [str(result.output_path)],
+            "summary": (
+                f"Compressed → {result.output_path.name} "
+                f"({_fmt_bytes(result.original_size)} → {_fmt_bytes(result.compressed_size)}, "
+                f"{pct:.0f}% smaller)"
+            ),
+        }
+
+    if tool_id == "to_images":
+        fmt_str = str(opts.get("fmt", "png"))
+        options = ToImagesOptions(
+            fmt=ImageFormat(fmt_str),
+            dpi=int(opts.get("dpi", 150)),
+            page_spec=str(opts.get("page_spec", "all")),
+        )
+        result = pdf_to_images(pdf, options, output_dir=out_dir)
+        return {
+            "outputs": [str(p) for p in result.output_paths],
+            "summary": f"Exported {len(result.output_paths)} image(s) to {out_dir}",
+        }
+
+    if tool_id == "watermark":
+        color_str = str(opts.get("color", "gray"))
+        color_map = {
+            "gray": (0.5, 0.5, 0.5),
+            "red": (0.8, 0.1, 0.1),
+            "blue": (0.1, 0.1, 0.8),
+            "black": (0.0, 0.0, 0.0),
+        }
+        options = WatermarkOptions(
+            text=str(opts.get("text", "CONFIDENTIAL")),
+            font_size=int(opts.get("font_size", 48)),
+            opacity=float(opts.get("opacity", 0.3)),
+            rotation=int(opts.get("rotation", 45)),
+            mode=WatermarkMode(str(opts.get("mode", "diagonal"))),
+            color=color_map.get(color_str, (0.5, 0.5, 0.5)),
+            page_spec=str(opts.get("page_spec", "all")),
+        )
+        out_path = out_dir / f"{pdf.stem}_watermarked.pdf"
+        result = watermark_pdf(pdf, options, output_path=out_path)
+        return {
+            "outputs": [str(result.output_path)],
+            "summary": f"Watermarked {result.pages_stamped} page(s) → {result.output_path.name}",
+        }
+
+    if tool_id == "numbers":
+        options = PageNumbersOptions(
+            fmt=str(opts.get("fmt", "Page {page} of {total}")),
+            position=str(opts.get("position", "bottom-center")),
+            start_number=int(opts.get("start_number", 1)),
+            skip_first_n=int(opts.get("skip_first_n", 0)),
+            font_size=int(opts.get("font_size", 10)),
+            opacity=float(opts.get("opacity", 0.7)),
+            margin=int(opts.get("margin", 24)),
+        )
+        out_path = out_dir / f"{pdf.stem}_numbered.pdf"
+        result = add_page_numbers(pdf, options, output_path=out_path)
+        return {
+            "outputs": [str(result.output_path)],
+            "summary": f"Numbered {result.pages_numbered} page(s) → {result.output_path.name}",
+        }
+
+    if tool_id == "metadata":
+        fields = {k: str(v) for k, v in (opts.get("fields") or {}).items() if v}
+        if not fields:
+            meta = read_metadata(pdf)
+            return {"outputs": [], "summary": "Metadata (read-only)", "metadata": meta}
+        options = MetadataOptions(fields=fields)
+        out_path = out_dir / f"{pdf.stem}_metadata.pdf"
+        result = write_metadata(pdf, options, output_path=out_path)
+        return {
+            "outputs": [str(result.output_path)],
+            "summary": f"Updated metadata → {result.output_path.name}",
+            "metadata": result.metadata,
         }
 
     raise ValueError(f"Tool not yet wired: {tool_id}")

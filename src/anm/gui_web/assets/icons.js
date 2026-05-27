@@ -36,6 +36,8 @@ const ICON_PATHS = {
   folder: '<path d="M3 6h5l2 2h7v8H3z"/>',
   sun: '<circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/>',
   moon: '<path d="M15 12.5A6.5 6.5 0 017.5 5a6.5 6.5 0 108.5 7.5"/>',
+  to_images: '<path d="M3 5h11v9H3z"/><circle cx="6.5" cy="8.5" r="1"/><path d="M3 13l3-3 3 3 2-2 3 3"/><path d="M16 7v9H6"/>',
+  from_images: '<path d="M6 3h11v9H6z"/><path d="M3 7v9h11"/><path d="M10 8l2 2 2-2"/><path d="M12 6v4"/>',
 };
 
 function icon(name, size = 18, stroke = 1.6) {
