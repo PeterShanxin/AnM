@@ -58,7 +58,7 @@ def test_compress_with_image(tmp_path: Path) -> None:
     make_pdf_with_image(src)
     out = tmp_path / "compressed.pdf"
 
-    result = compress_pdf(src, CompressOptions(quality=CompressQuality.LOW), output_path=out)
+    compress_pdf(src, CompressOptions(quality=CompressQuality.LOW), output_path=out)
 
     assert out.is_file()
     with fitz.open(out) as doc:

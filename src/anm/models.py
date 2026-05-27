@@ -3,6 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+POSITION_CONFIG: dict[str, tuple[str, str]] = {
+    "top-left": ("left", "top"),
+    "top-center": ("center", "top"),
+    "top-right": ("right", "top"),
+    "bottom-left": ("left", "bottom"),
+    "bottom-center": ("center", "bottom"),
+    "bottom-right": ("right", "bottom"),
+}
+
 
 @dataclass(slots=True)
 class AnnotationOptions:

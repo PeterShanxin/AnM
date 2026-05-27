@@ -251,7 +251,10 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
     )
     to_images.add_argument("pdf", type=Path, help="PDF to convert")
     to_images.add_argument("--format", choices=["png", "jpeg"], default="png", help="image format")
-    to_images.add_argument("--dpi", type=int, choices=[72, 150, 300], default=150, help="resolution")
+    to_images.add_argument(
+        "--dpi", type=int, choices=[72, 150, 300],
+        default=150, help="resolution",
+    )
     to_images.add_argument("--pages", default="all", help="page selection (default: all)")
     to_images.add_argument("--output", "-o", required=True, type=Path, help="output directory")
     to_images.add_argument("--json", action="store_true", help="print machine-readable JSON")
@@ -261,11 +264,18 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
         "from-images",
         help="combine images into a PDF",
         description="Create a PDF from PNG, JPG, BMP, or TIFF images.",
-        epilog="Examples:\n  anm from-images img1.jpg img2.png --page-size a4 --output .\\album.pdf",
+        epilog=(
+            "Examples:\n"
+            "  anm from-images img1.jpg img2.png"
+            " --page-size a4 --output .\\album.pdf"
+        ),
     )
     from_images.add_argument("images", nargs="+", type=Path, help="image files in order")
     from_images.add_argument("--page-size", choices=["a4", "letter", "fit"], default="a4")
-    from_images.add_argument("--orientation", choices=["auto", "portrait", "landscape"], default="auto")
+    from_images.add_argument(
+        "--orientation", choices=["auto", "portrait", "landscape"],
+        default="auto",
+    )
     from_images.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
     from_images.add_argument("--json", action="store_true", help="print machine-readable JSON")
     from_images.set_defaults(handler=handle_from_images)
@@ -274,11 +284,18 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
         "watermark",
         help="add a text watermark",
         description="Stamp text over PDF pages.",
-        epilog='Examples:\n  anm watermark .\\a.pdf --text "CONFIDENTIAL" --opacity 0.3 --output .\\wm.pdf',
+        epilog=(
+            "Examples:\n"
+            '  anm watermark .\\a.pdf --text "CONFIDENTIAL"'
+            " --opacity 0.3 --output .\\wm.pdf"
+        ),
     )
     watermark.add_argument("pdf", type=Path, help="PDF to watermark")
     watermark.add_argument("--text", default="CONFIDENTIAL", help="watermark text")
-    watermark.add_argument("--mode", choices=["diagonal", "tiled", "header", "footer"], default="diagonal")
+    watermark.add_argument(
+        "--mode", choices=["diagonal", "tiled", "header", "footer"],
+        default="diagonal",
+    )
     watermark.add_argument("--font-size", type=int, default=48)
     watermark.add_argument("--opacity", type=float, default=0.3)
     watermark.add_argument("--rotation", type=int, default=45)
@@ -291,7 +308,11 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
         "page-numbers",
         help="add page numbers",
         description="Stamp page numbers on PDF pages.",
-        epilog='Examples:\n  anm page-numbers .\\a.pdf --format "Page {page} of {total}" --output .\\numbered.pdf',
+        epilog=(
+            "Examples:\n"
+            '  anm page-numbers .\\a.pdf --format "Page {page} of {total}"'
+            " --output .\\numbered.pdf"
+        ),
     )
     page_numbers.add_argument("pdf", type=Path, help="PDF to number")
     page_numbers.add_argument("--format", default="Page {page} of {total}", help="number format")
@@ -311,13 +332,24 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
         epilog=(
             "Examples:\n"
             '  anm metadata .\\a.pdf --show\n'
-            '  anm metadata .\\a.pdf --set title="My Doc" --set author="Name" --output .\\updated.pdf'
+            '  anm metadata .\\a.pdf --set title="My Doc"'
+            ' --set author="Name" --output .\\updated.pdf'
         ),
     )
-    metadata_cmd.add_argument("pdf", type=Path, help="PDF to inspect or modify")
-    metadata_cmd.add_argument("--show", action="store_true", help="show current metadata")
-    metadata_cmd.add_argument("--set", action="append", metavar='KEY=VALUE', help="set a metadata field")
-    metadata_cmd.add_argument("--output", "-o", type=Path, help="output PDF path (required for --set)")
+    metadata_cmd.add_argument(
+        "pdf", type=Path, help="PDF to inspect or modify",
+    )
+    metadata_cmd.add_argument(
+        "--show", action="store_true", help="show current metadata",
+    )
+    metadata_cmd.add_argument(
+        "--set", action="append", metavar='KEY=VALUE',
+        help="set a metadata field",
+    )
+    metadata_cmd.add_argument(
+        "--output", "-o", type=Path,
+        help="output PDF path (required for --set)",
+    )
     metadata_cmd.add_argument("--json", action="store_true", help="print machine-readable JSON")
     metadata_cmd.set_defaults(handler=handle_metadata)
 
@@ -716,15 +748,22 @@ def handle_compress(
         output_path=args.output,
     )
 
-    saved = result.original_size - result.compressed_size
-    pct = (saved / result.original_size * 100) if result.original_size else 0
+    orig, comp = result.original_size, result.compressed_size
+    if orig and comp < orig:
+        pct = (orig - comp) / orig * 100
+        delta = f"{pct:.0f}% smaller"
+    elif orig and comp > orig:
+        pct = (comp - orig) / orig * 100
+        delta = f"{pct:.0f}% larger"
+    else:
+        delta = "same size"
     payload = {
         "ok": True,
         "command": "compress",
         "inputs": [str(source)],
         "output": str(result.output_path),
-        "original_size": result.original_size,
-        "compressed_size": result.compressed_size,
+        "original_size": orig,
+        "compressed_size": comp,
         "warnings": [],
     }
     if args.json:
@@ -732,7 +771,7 @@ def handle_compress(
     else:
         stdout.write(
             f"Compressed → {result.output_path}\n"
-            f"  {result.original_size:,} → {result.compressed_size:,} bytes ({pct:.0f}% smaller)\n"
+            f"  {orig:,} → {comp:,} bytes ({delta})\n"
         )
     return 0
 

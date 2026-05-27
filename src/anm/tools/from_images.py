@@ -61,7 +61,9 @@ def images_to_pdf(
 
     doc = fitz.open()
     for img_path in resolved:
-        img_rect = fitz.Rect(fitz.Pixmap(str(img_path)).irect)
+        pix = fitz.Pixmap(str(img_path))
+        img_rect = fitz.Rect(pix.irect)
+        pix = None  # release immediately
         page_rect = _compute_page_rect(img_rect, options)
         page = doc.new_page(width=page_rect.width, height=page_rect.height)
         fit_rect = _fit_rect(img_rect, page_rect)

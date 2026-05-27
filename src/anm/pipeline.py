@@ -9,18 +9,9 @@ from typing import Callable
 
 import fitz
 
-from .models import AnnotationOptions, RunOptions, RunResult
+from .models import POSITION_CONFIG, AnnotationOptions, RunOptions, RunResult
 
 ProgressCallback = Callable[[dict[str, object]], None]
-
-POSITION_CONFIG: dict[str, tuple[str, str]] = {
-    "top-left": ("left", "top"),
-    "top-center": ("center", "top"),
-    "top-right": ("right", "top"),
-    "bottom-left": ("left", "bottom"),
-    "bottom-center": ("center", "bottom"),
-    "bottom-right": ("right", "bottom"),
-}
 
 
 class CancelledError(RuntimeError):

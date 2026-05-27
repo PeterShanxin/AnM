@@ -811,7 +811,11 @@ function bindTool() {
     const key = input.getAttribute('data-bind');
     input.addEventListener('input', () => {
       const o = getOpts(state.toolId);
-      o[key] = input.type === 'number' ? parseFloat(input.value || '0') : input.value;
+      o[key] = input.type === 'number'
+        ? (input.step === 'any' || (input.step && input.step.includes('.'))
+            ? parseFloat(input.value || '0')
+            : parseInt(input.value || '0', 10))
+        : input.value;
     });
   });
   // Page-numbers position chips
@@ -977,7 +981,7 @@ function renderImageFileList() {
     `;
   }
   const rows = files.map((f, i) => `
-    <div class="merge-row" draggable="true" data-irow="${i}"
+    <div class="image-row" draggable="true" data-irow="${i}"
          style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--anm-surface);border:1px solid var(--anm-border);border-radius:var(--anm-radius);cursor:grab">
       <div style="color:var(--anm-text-subtle);font-size:12px;width:18px;text-align:right">${i + 1}</div>
       <div style="width:28px;height:36px;flex-shrink:0;background:var(--anm-surface-2);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--anm-text-subtle)">${icon('images', 14)}</div>
@@ -1093,6 +1097,7 @@ function applyLoadedPdf(data) {
   state.selectedPages = new Set();
   state.thumbCache = {};
   render();
+  if (state.toolId === 'metadata') loadMetadata();
 }
 
 async function pickOutputDir() {

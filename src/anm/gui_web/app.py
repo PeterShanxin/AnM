@@ -486,14 +486,20 @@ def _dispatch_tool(
         )
         out_path = out_dir / f"{pdf.stem}_compressed.pdf"
         result = compress_pdf(pdf, options, output_path=out_path)
-        saved = result.original_size - result.compressed_size
-        pct = (saved / result.original_size * 100) if result.original_size else 0
+        orig, comp = result.original_size, result.compressed_size
+        if orig and comp < orig:
+            pct = (orig - comp) / orig * 100
+            delta = f"{pct:.0f}% smaller"
+        elif orig and comp > orig:
+            pct = (comp - orig) / orig * 100
+            delta = f"{pct:.0f}% larger"
+        else:
+            delta = "same size"
         return {
             "outputs": [str(result.output_path)],
             "summary": (
                 f"Compressed → {result.output_path.name} "
-                f"({_fmt_bytes(result.original_size)} → {_fmt_bytes(result.compressed_size)}, "
-                f"{pct:.0f}% smaller)"
+                f"({_fmt_bytes(orig)} → {_fmt_bytes(comp)}, {delta})"
             ),
         }
 
@@ -552,7 +558,7 @@ def _dispatch_tool(
         }
 
     if tool_id == "metadata":
-        fields = {k: str(v) for k, v in (opts.get("fields") or {}).items() if v}
+        fields = {k: str(v) for k, v in (opts.get("fields") or {}).items() if v is not None}
         if not fields:
             meta = read_metadata(pdf)
             return {"outputs": [], "summary": "Metadata (read-only)", "metadata": meta}

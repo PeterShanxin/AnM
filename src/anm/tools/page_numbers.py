@@ -5,14 +5,7 @@ from pathlib import Path
 
 import fitz
 
-POSITION_CONFIG: dict[str, tuple[str, str]] = {
-    "top-left": ("left", "top"),
-    "top-center": ("center", "top"),
-    "top-right": ("right", "top"),
-    "bottom-left": ("left", "bottom"),
-    "bottom-center": ("center", "bottom"),
-    "bottom-right": ("right", "bottom"),
-}
+from ..models import POSITION_CONFIG
 
 
 @dataclass(slots=True)

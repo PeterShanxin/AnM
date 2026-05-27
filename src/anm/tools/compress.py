@@ -67,16 +67,22 @@ def _recompress_images(doc: fitz.Document, jpeg_quality: int) -> None:
             if xref in processed:
                 continue
             processed.add(xref)
+            smask = img_info[1] if len(img_info) > 1 else 0
+            if smask:
+                continue
             try:
                 pix = fitz.Pixmap(doc, xref)
             except Exception:
                 continue
             if pix.width < 8 or pix.height < 8:
                 continue
-            if pix.n - pix.alpha > 3:
-                pix = fitz.Pixmap(fitz.csRGB, pix)
             if pix.alpha:
+                continue
+            cs_name = "/DeviceRGB"
+            if pix.n > 3:
                 pix = fitz.Pixmap(fitz.csRGB, pix)
+            elif pix.n == 1:
+                cs_name = "/DeviceGray"
             try:
                 img_bytes = pix.tobytes("jpeg", jpg_quality=jpeg_quality)
             except Exception:
@@ -86,5 +92,5 @@ def _recompress_images(doc: fitz.Document, jpeg_quality: int) -> None:
             doc.xref_set_key(xref, "DecodeParms", "null")
             doc.xref_set_key(xref, "Width", str(pix.width))
             doc.xref_set_key(xref, "Height", str(pix.height))
-            doc.xref_set_key(xref, "ColorSpace", "/DeviceRGB")
+            doc.xref_set_key(xref, "ColorSpace", cs_name)
             doc.xref_set_key(xref, "BitsPerComponent", "8")
