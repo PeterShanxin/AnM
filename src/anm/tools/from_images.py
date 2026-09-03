@@ -59,19 +59,18 @@ def images_to_pdf(
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    doc = fitz.open()
-    for img_path in resolved:
-        pix = fitz.Pixmap(str(img_path))
-        img_rect = fitz.Rect(pix.irect)
-        pix = None  # release immediately
-        page_rect = _compute_page_rect(img_rect, options)
-        page = doc.new_page(width=page_rect.width, height=page_rect.height)
-        fit_rect = _fit_rect(img_rect, page_rect)
-        page.insert_image(fit_rect, filename=str(img_path))
+    with fitz.open() as doc:
+        for img_path in resolved:
+            pix = fitz.Pixmap(str(img_path))
+            img_rect = fitz.Rect(pix.irect)
+            pix = None  # release immediately
+            page_rect = _compute_page_rect(img_rect, options)
+            page = doc.new_page(width=page_rect.width, height=page_rect.height)
+            fit_rect = _fit_rect(img_rect, page_rect)
+            page.insert_image(fit_rect, filename=str(img_path))
 
-    doc.save(output_path)
-    page_count = doc.page_count
-    doc.close()
+        doc.save(output_path)
+        page_count = doc.page_count
 
     return FromImagesResult(output_path=output_path, page_count=page_count)
 

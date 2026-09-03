@@ -299,6 +299,10 @@ def build_parser(stdout: TextIO | None = None, stderr: TextIO | None = None) -> 
     watermark.add_argument("--font-size", type=int, default=48)
     watermark.add_argument("--opacity", type=float, default=0.3)
     watermark.add_argument("--rotation", type=int, default=45)
+    watermark.add_argument(
+        "--color", choices=["gray", "red", "blue", "black"], default="gray",
+        help="watermark text color (default: gray)",
+    )
     watermark.add_argument("--pages", default="all", help="page selection (default: all)")
     watermark.add_argument("--output", "-o", required=True, type=Path, help="output PDF path")
     watermark.add_argument("--json", action="store_true", help="print machine-readable JSON")
@@ -845,6 +849,12 @@ def handle_watermark(
     source = validate_pdf_paths([args.pdf])[0]
     from .tools.watermark import WatermarkMode, WatermarkOptions, watermark_pdf
 
+    color_map = {
+        "gray": (0.5, 0.5, 0.5),
+        "red": (0.8, 0.1, 0.1),
+        "blue": (0.1, 0.1, 0.8),
+        "black": (0.0, 0.0, 0.0),
+    }
     result = watermark_pdf(
         source,
         WatermarkOptions(
@@ -853,6 +863,7 @@ def handle_watermark(
             opacity=args.opacity,
             rotation=args.rotation,
             mode=WatermarkMode(args.mode),
+            color=color_map.get(args.color, (0.5, 0.5, 0.5)),
             page_spec=args.pages,
         ),
         output_path=args.output,
@@ -912,6 +923,9 @@ def handle_metadata(
 ) -> int:
     source = validate_pdf_paths([args.pdf])[0]
     from .tools.metadata import MetadataOptions, read_metadata, write_metadata
+
+    if args.show and args.set:
+        raise CliError("Cannot use both --show and --set")
 
     if args.show or not args.set:
         meta = read_metadata(source)

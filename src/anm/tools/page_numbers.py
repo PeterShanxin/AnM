@@ -36,6 +36,14 @@ def add_page_numbers(
         raise FileNotFoundError(f"PDF not found: {input_path}")
     if options.position not in POSITION_CONFIG:
         raise ValueError(f"Invalid position: {options.position}")
+    if options.skip_first_n < 0:
+        raise ValueError("skip_first_n must be non-negative.")
+    if options.font_size <= 0:
+        raise ValueError("font_size must be positive.")
+    if not (0.0 <= options.opacity <= 1.0):
+        raise ValueError("opacity must be between 0.0 and 1.0.")
+    if options.margin < 0:
+        raise ValueError("margin must be non-negative.")
 
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,7 +55,13 @@ def add_page_numbers(
             if page_idx < options.skip_first_n:
                 continue
             page_num = options.start_number + page_idx - options.skip_first_n
-            text = options.fmt.format(page=page_num, total=total)
+            try:
+                text = options.fmt.format(page=page_num, total=total)
+            except (KeyError, IndexError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid page numbers format '{options.fmt}': {exc}. "
+                    "Only {page} and {total} placeholders are supported."
+                ) from exc
             _insert_number(doc[page_idx], text, options)
             numbered += 1
         doc.save(output_path)

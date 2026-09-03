@@ -417,6 +417,50 @@ def test_metadata_set_cli(tmp_path: Path) -> None:
     assert meta["title"] == "My Title"
 
 
+def test_watermark_cli_color(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    output = tmp_path / "wm.pdf"
+
+    code, stdout, stderr = run_cli([
+        "watermark", str(source),
+        "--text", "CONFIDENTIAL",
+        "--color", "red",
+        "--output", str(output),
+    ])
+
+    assert code == 0
+    assert output.is_file()
+
+
+def test_metadata_clear_cli(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+    with_title = tmp_path / "with_title.pdf"
+    run_cli(["metadata", str(source), "--set", "title=Old Title", "--output", str(with_title)])
+
+    cleared = tmp_path / "cleared.pdf"
+    code, stdout, stderr = run_cli(
+        ["metadata", str(with_title), "--set", "title=", "--output", str(cleared)]
+    )
+    assert code == 0
+    meta = fitz.open(cleared).metadata
+    assert not meta.get("title")
+
+
+def test_metadata_show_and_set_conflict(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    make_pdf(source, "hello")
+
+    code, stdout, stderr = run_cli([
+        "metadata", str(source),
+        "--show", "--set", "title=Test",
+        "--output", str(tmp_path / "out.pdf"),
+    ])
+    assert code == 1
+    assert "Cannot use both --show and --set" in stderr
+
+
 def test_metadata_set_requires_output(tmp_path: Path) -> None:
     source = tmp_path / "source.pdf"
     make_pdf(source, "hello")

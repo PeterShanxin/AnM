@@ -59,6 +59,31 @@ def test_read_back_written_metadata(tmp_path: Path) -> None:
     assert meta["keywords"] == "pdf,test"
 
 
+def test_clear_metadata_fields(tmp_path: Path) -> None:
+    src = tmp_path / "source.pdf"
+    make_pdf(src)
+    with_meta = tmp_path / "with_meta.pdf"
+    write_metadata(
+        src,
+        MetadataOptions(fields={"title": "Initial Title", "author": "Initial Author"}),
+        output_path=with_meta,
+    )
+
+    cleared = tmp_path / "cleared.pdf"
+    result = write_metadata(
+        with_meta,
+        MetadataOptions(fields={"title": ""}),
+        output_path=cleared,
+    )
+
+    assert "title" not in result.metadata
+    assert result.metadata.get("author") == "Initial Author"
+
+    read_back = read_metadata(cleared)
+    assert "title" not in read_back
+    assert read_back.get("author") == "Initial Author"
+
+
 def test_write_metadata_invalid_key(tmp_path: Path) -> None:
     src = tmp_path / "source.pdf"
     make_pdf(src)

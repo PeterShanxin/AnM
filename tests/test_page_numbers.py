@@ -84,3 +84,24 @@ def test_add_page_numbers_invalid_position(tmp_path: Path) -> None:
         add_page_numbers(
             src, PageNumbersOptions(position="middle"), output_path=tmp_path / "out.pdf"
         )
+
+
+def test_add_page_numbers_invalid_options(tmp_path: Path) -> None:
+    src = tmp_path / "source.pdf"
+    make_pdf(src, 1)
+    out = tmp_path / "out.pdf"
+
+    with pytest.raises(ValueError, match="skip_first_n"):
+        add_page_numbers(src, PageNumbersOptions(skip_first_n=-1), output_path=out)
+
+    with pytest.raises(ValueError, match="font_size"):
+        add_page_numbers(src, PageNumbersOptions(font_size=0), output_path=out)
+
+    with pytest.raises(ValueError, match="opacity"):
+        add_page_numbers(src, PageNumbersOptions(opacity=1.5), output_path=out)
+
+    with pytest.raises(ValueError, match="margin"):
+        add_page_numbers(src, PageNumbersOptions(margin=-5), output_path=out)
+
+    with pytest.raises(ValueError, match="Invalid page numbers format"):
+        add_page_numbers(src, PageNumbersOptions(fmt="Page {bad_token}"), output_path=out)

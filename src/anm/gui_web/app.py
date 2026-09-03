@@ -334,7 +334,14 @@ class Api:
             except OSError:
                 size_bytes = 0
             files.append({"path": str(path), "name": path.name, "size_bytes": size_bytes})
-        return _ok({"files": files})
+        with self._lock:
+            if files:
+                if self._output_dir == Path.cwd() / "output":
+                    self._output_dir = Path(files[0]["path"]).parent
+                current_out_dir = str(self._output_dir)
+            else:
+                current_out_dir = str(self._output_dir)
+        return _ok({"files": files, "output_dir": current_out_dir})
 
     def get_metadata(self) -> dict[str, Any]:
         with self._lock:

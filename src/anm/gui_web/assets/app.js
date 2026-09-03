@@ -741,7 +741,7 @@ function metadataInspector() {
   const rows = keys.map(k => `
     <div>
       <label style="font-size:11px;color:var(--anm-text-muted);display:block;text-transform:capitalize">${escapeHtml(k)}</label>
-      <input class="anm-input" data-metafield="${k}" value="${escapeAttr(fields[k] || meta[k] || '')}" placeholder="${escapeAttr(k)}">
+      <input class="anm-input" data-metafield="${k}" value="${escapeAttr(fields[k] !== undefined ? fields[k] : (meta[k] || ''))}" placeholder="${escapeAttr(k)}">
     </div>
   `).join('');
   return `
@@ -1043,6 +1043,7 @@ async function addImageFiles() {
   try {
     const data = await api('open_images_dialog');
     if (!data || !data.files || !data.files.length) { toast('No images picked.'); return; }
+    if (data.output_dir && !state.outputDir) state.outputDir = data.output_dir;
     const existing = new Set(state.from_images.files.map(f => f.path));
     for (const f of data.files) if (!existing.has(f.path)) state.from_images.files.push(f);
     render();
@@ -1096,6 +1097,8 @@ function applyLoadedPdf(data) {
   state.outputDir = data.output_dir;
   state.selectedPages = new Set();
   state.thumbCache = {};
+  state.metadataCache = null;
+  if (state.options.metadata) state.options.metadata.fields = {};
   render();
   if (state.toolId === 'metadata') loadMetadata();
 }

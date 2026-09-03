@@ -78,16 +78,17 @@ def _recompress_images(doc: fitz.Document, jpeg_quality: int) -> None:
                 continue
             if pix.alpha:
                 continue
-            cs_name = "/DeviceRGB"
-            if pix.n > 3:
-                pix = fitz.Pixmap(fitz.csRGB, pix)
-            elif pix.n == 1:
+            if pix.colorspace and pix.colorspace.name == "DeviceGray":
                 cs_name = "/DeviceGray"
+            else:
+                if pix.colorspace is None or pix.colorspace.name != "DeviceRGB":
+                    pix = fitz.Pixmap(fitz.csRGB, pix)
+                cs_name = "/DeviceRGB"
             try:
                 img_bytes = pix.tobytes("jpeg", jpg_quality=jpeg_quality)
             except Exception:
                 continue
-            doc.update_stream(xref, img_bytes)
+            doc.update_stream(xref, img_bytes, compress=False)
             doc.xref_set_key(xref, "Filter", "/DCTDecode")
             doc.xref_set_key(xref, "DecodeParms", "null")
             doc.xref_set_key(xref, "Width", str(pix.width))

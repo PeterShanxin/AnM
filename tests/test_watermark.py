@@ -92,3 +92,20 @@ def test_watermark_missing_file(tmp_path: Path) -> None:
         watermark_pdf(
             tmp_path / "missing.pdf", WatermarkOptions(), output_path=tmp_path / "wm.pdf"
         )
+
+
+def test_watermark_colors_and_opacity(tmp_path: Path) -> None:
+    src = tmp_path / "source.pdf"
+    make_pdf(src, 1)
+    out = tmp_path / "wm_red.pdf"
+
+    result = watermark_pdf(
+        src,
+        WatermarkOptions(text="RED ALERT", color=(0.8, 0.1, 0.1), opacity=0.5),
+        output_path=out,
+    )
+    assert result.pages_stamped == 1
+    assert out.is_file()
+    with fitz.open(out) as doc:
+        text = doc[0].get_text()
+        assert "RED ALERT" in text

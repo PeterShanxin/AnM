@@ -22,3 +22,4 @@ test_*.log
 .claude/
 .tmp/
 uv.lock
+.vs/
