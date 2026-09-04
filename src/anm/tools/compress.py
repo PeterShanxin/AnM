@@ -70,6 +70,12 @@ def _recompress_images(doc: fitz.Document, jpeg_quality: int) -> None:
             smask = img_info[1] if len(img_info) > 1 else 0
             if smask:
                 continue
+            if doc.xref_get_key(xref, "SMask")[0] != "null":
+                continue
+            if doc.xref_get_key(xref, "Mask")[0] != "null":
+                continue
+            if doc.xref_get_key(xref, "ImageMask")[1] == "true":
+                continue
             try:
                 pix = fitz.Pixmap(doc, xref)
             except Exception:
@@ -78,10 +84,10 @@ def _recompress_images(doc: fitz.Document, jpeg_quality: int) -> None:
                 continue
             if pix.alpha:
                 continue
-            if pix.colorspace and pix.colorspace.name == "DeviceGray":
+            if pix.colorspace and (pix.colorspace.n == 1 or "gray" in pix.colorspace.name.lower()):
                 cs_name = "/DeviceGray"
             else:
-                if pix.colorspace is None or pix.colorspace.name != "DeviceRGB":
+                if pix.colorspace is None or pix.colorspace.n != 3:
                     pix = fitz.Pixmap(fitz.csRGB, pix)
                 cs_name = "/DeviceRGB"
             try:
@@ -91,7 +97,10 @@ def _recompress_images(doc: fitz.Document, jpeg_quality: int) -> None:
             doc.update_stream(xref, img_bytes, compress=False)
             doc.xref_set_key(xref, "Filter", "/DCTDecode")
             doc.xref_set_key(xref, "DecodeParms", "null")
+            doc.xref_set_key(xref, "Decode", "null")
             doc.xref_set_key(xref, "Width", str(pix.width))
             doc.xref_set_key(xref, "Height", str(pix.height))
             doc.xref_set_key(xref, "ColorSpace", cs_name)
             doc.xref_set_key(xref, "BitsPerComponent", "8")
+            doc.xref_set_key(xref, "SMaskInData", "null")
+            doc.xref_set_key(xref, "Alternates", "null")
