@@ -141,12 +141,87 @@ def test_dispatch_reorder_rejects_non_list(tmp_path: Path) -> None:
         _dispatch_tool("reorder", src, tmp_path / "out", {"order": "3,1,2"})
 
 
+def test_dispatch_compress(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 2)
+
+    result = _dispatch_tool("compress", src, tmp_path / "out", {"quality": "medium"})
+
+    assert len(result["outputs"]) == 1
+    assert "smaller" in result["summary"]
+
+
+def test_dispatch_to_images(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 2)
+
+    result = _dispatch_tool("to_images", src, tmp_path / "out", {
+        "fmt": "png", "dpi": 72, "page_spec": "all",
+    })
+
+    assert len(result["outputs"]) == 2
+
+
+def test_dispatch_watermark(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 2)
+
+    result = _dispatch_tool("watermark", src, tmp_path / "out", {
+        "text": "DRAFT", "mode": "diagonal",
+    })
+
+    assert "Watermarked 2 page" in result["summary"]
+
+
+def test_dispatch_numbers(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 3)
+
+    result = _dispatch_tool("numbers", src, tmp_path / "out", {})
+
+    assert "Numbered 3 page" in result["summary"]
+
+
+def test_dispatch_metadata_read(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 1)
+
+    result = _dispatch_tool("metadata", src, tmp_path / "out", {})
+
+    assert "metadata" in result
+
+
+def test_dispatch_metadata_write(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 1)
+
+    result = _dispatch_tool("metadata", src, tmp_path / "out", {
+        "fields": {"title": "Test Doc"},
+    })
+
+    assert len(result["outputs"]) == 1
+    assert result["metadata"]["title"] == "Test Doc"
+
+
+def test_dispatch_metadata_clear(tmp_path: Path) -> None:
+    src = tmp_path / "in.pdf"
+    make_pdf(src, 1)
+    _dispatch_tool("metadata", src, tmp_path, {"fields": {"title": "To Clear", "author": "Keep"}})
+
+    result = _dispatch_tool("metadata", tmp_path / "in_metadata.pdf", tmp_path / "out", {
+        "fields": {"title": ""},
+    })
+    assert len(result["outputs"]) == 1
+    assert "title" not in result["metadata"]
+    assert result["metadata"].get("author") == "Keep"
+
+
 def test_dispatch_unknown_tool(tmp_path: Path) -> None:
     src = tmp_path / "in.pdf"
     make_pdf(src, 1)
 
     with pytest.raises(ValueError, match="Tool not yet wired"):
-        _dispatch_tool("compress", src, tmp_path / "out", {})
+        _dispatch_tool("nonexistent_tool", src, tmp_path / "out", {})
 
 
 # ───────────────────────── Api envelope shape ──────────────────────────
@@ -262,3 +337,21 @@ def test_api_run_merge_ok(tmp_path: Path) -> None:
     assert merged.exists()
     with fitz.open(merged) as doc:
         assert doc.page_count == 5
+
+
+def test_api_run_from_images_ok(tmp_path: Path) -> None:
+    img = tmp_path / "test.png"
+    pix = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 100, 100), 0)
+    pix.clear_with(200)
+    pix.save(str(img))
+
+    api = Api()
+    api._output_dir = tmp_path / "out"
+
+    result = api.run_from_images([str(img)], {"page_size": "a4", "orientation": "portrait"})
+    assert result["ok"] is True
+    assert len(result["data"]["outputs"]) == 1
+    out_file = Path(result["data"]["outputs"][0])
+    assert out_file.is_file()
+    with fitz.open(out_file) as doc:
+        assert doc.page_count == 1

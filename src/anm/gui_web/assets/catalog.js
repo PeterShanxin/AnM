@@ -3,25 +3,26 @@
 
 const TOOLS = [
   // Organize
-  { id: 'merge',     label: 'Merge',         cat: 'organize', desc: 'Combine multiple PDFs into one', wired: true },
-  { id: 'split',     label: 'Split',         cat: 'organize', desc: 'Break a PDF into parts',         wired: true  },
-  { id: 'reorder',   label: 'Reorder',       cat: 'organize', desc: 'Rearrange pages',                wired: true  },
-  { id: 'delete',    label: 'Delete Pages',  cat: 'organize', desc: 'Remove specific pages',          wired: true  },
-  { id: 'rotate',    label: 'Rotate',        cat: 'organize', desc: 'Rotate pages 90/180/270°',       wired: true  },
-  { id: 'extract',   label: 'Extract',       cat: 'organize', desc: 'Pull pages into a new PDF',      wired: true  },
+  { id: 'merge',       label: 'Merge',         cat: 'organize', desc: 'Combine multiple PDFs into one', wired: true },
+  { id: 'split',       label: 'Split',         cat: 'organize', desc: 'Break a PDF into parts',         wired: true  },
+  { id: 'reorder',     label: 'Reorder',       cat: 'organize', desc: 'Rearrange pages',                wired: true  },
+  { id: 'delete',      label: 'Delete Pages',  cat: 'organize', desc: 'Remove specific pages',          wired: true  },
+  { id: 'rotate',      label: 'Rotate',        cat: 'organize', desc: 'Rotate pages 90/180/270°',       wired: true  },
+  { id: 'extract',     label: 'Extract',       cat: 'organize', desc: 'Pull pages into a new PDF',      wired: true  },
   // Edit
-  { id: 'annotate',  label: 'Annotate',      cat: 'edit',     desc: 'Add notes, highlights, shapes',  wired: false },
-  { id: 'watermark', label: 'Watermark',     cat: 'edit',     desc: 'Stamp text or image over pages', wired: false },
-  { id: 'numbers',   label: 'Page Numbers',  cat: 'edit',     desc: 'Add page numbering',             wired: false },
-  { id: 'metadata',  label: 'Metadata',      cat: 'edit',     desc: 'Edit title, author, keywords',   wired: false },
+  { id: 'annotate',    label: 'Annotate',      cat: 'edit',     desc: 'Add notes, highlights, shapes',  wired: false },
+  { id: 'watermark',   label: 'Watermark',     cat: 'edit',     desc: 'Stamp text over pages',          wired: true  },
+  { id: 'numbers',     label: 'Page Numbers',  cat: 'edit',     desc: 'Add page numbering',             wired: true  },
+  { id: 'metadata',    label: 'Metadata',      cat: 'edit',     desc: 'Edit title, author, keywords',   wired: true  },
   // Convert
-  { id: 'images',    label: 'PDF ⇄ Images',  cat: 'convert',  desc: 'Convert to/from PNG, JPG',       wired: false },
-  { id: 'compress',  label: 'Compress',      cat: 'convert',  desc: 'Reduce file size',               wired: false },
-  { id: 'ocr',       label: 'OCR',           cat: 'convert',  desc: 'Recognize text from scans',      wired: false },
+  { id: 'to_images',   label: 'PDF → Images',  cat: 'convert',  desc: 'Export pages as PNG or JPG',     wired: true  },
+  { id: 'from_images', label: 'Images → PDF',  cat: 'convert',  desc: 'Combine images into a PDF',      wired: true  },
+  { id: 'compress',    label: 'Compress',      cat: 'convert',  desc: 'Reduce file size',               wired: true  },
+  { id: 'ocr',         label: 'OCR',           cat: 'convert',  desc: 'Recognize text from scans',      wired: false },
   // Secure
-  { id: 'protect',   label: 'Protect/Unlock',cat: 'secure',   desc: 'Add or remove a password',       wired: false },
-  { id: 'flatten',   label: 'Flatten',       cat: 'secure',   desc: 'Lock form fields & annotations', wired: false },
-  { id: 'compare',   label: 'Compare',       cat: 'secure',   desc: 'Diff two PDFs side-by-side',     wired: false },
+  { id: 'protect',     label: 'Protect/Unlock',cat: 'secure',   desc: 'Add or remove a password',       wired: false },
+  { id: 'flatten',     label: 'Flatten',       cat: 'secure',   desc: 'Lock form fields & annotations', wired: false },
+  { id: 'compare',     label: 'Compare',       cat: 'secure',   desc: 'Diff two PDFs side-by-side',     wired: false },
 ];
 
 const CATEGORIES = [
