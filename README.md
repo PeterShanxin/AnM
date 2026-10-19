@@ -130,3 +130,9 @@ This creates a PyInstaller build under `dist/AnM/`.
 ## Maintenance note
 
 If workflow, build, release, or developer setup behavior changes, update `AGENTS.md`, this README, and the corresponding config or CI files together.
+
+## Writing clarity
+
+Human contributors and agents follow the project-wide
+[STE-inspired clarity standard](docs/WRITING_GUIDE.md) for new or changed README,
+documentation, help, error and UI text, comments, and delivery notes.

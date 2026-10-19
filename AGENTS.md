@@ -23,3 +23,8 @@ Repo-local guidance for `D:\Repos\AnM`.
 - Keep file ordering behavior deterministic and reflected exactly in the GUI list.
 - Use repo ignore rules for generated artifacts instead of relying on developers to clean them manually.
 - Keep the default GUI output folder derived from included PDFs, while honoring explicit user-selected output folders.
+
+## Writing clarity
+
+Follow [STE-inspired clarity](docs/WRITING_GUIDE.md) for new or changed text and delivery
+notes. This project-wide standard applies to human contributors and agents.
